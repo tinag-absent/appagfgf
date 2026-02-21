@@ -1,0 +1,131 @@
+/* ── Loading Overlay ── */
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: hsl(220, 30%, 8%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  transition: opacity 0.6s ease-out, visibility 0.6s ease-out;
+}
+
+.loading-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+/* ── Center content ── */
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  width: 280px;
+}
+
+/* ── Logo mark: single rotating ring + dot ── */
+.loading-mark {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  margin-bottom: 2.5rem;
+}
+
+/* Outer ring — slow rotate */
+.loading-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 229, 229, 0.18);
+  border-top-color: hsl(180, 70%, 50%);
+  animation: ringRotate 1.8s linear infinite;
+}
+
+/* Inner dot — pulse */
+.loading-dot {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: hsl(180, 70%, 50%);
+  box-shadow: 0 0 10px hsl(180, 70%, 50%), 0 0 24px rgba(0, 229, 229, 0.3);
+  animation: dotPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes ringRotate {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 1;   transform: scale(1);   }
+  50%       { opacity: 0.4; transform: scale(0.65); }
+}
+
+/* ── Title ── */
+.loading-title {
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.38em;
+  color: rgba(255, 255, 255, 0.88);
+  text-transform: uppercase;
+  margin-bottom: 2rem;
+}
+
+/* ── Progress line ── */
+.loading-line {
+  width: 100%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 1rem;
+}
+
+/* Idle sweep (before progress starts) */
+.loading-line-sweep {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, hsl(180, 70%, 50%), transparent);
+  transform: translateX(-100%);
+  animation: lineSweep 1.6s ease-in-out infinite;
+}
+
+/* Actual progress fill */
+.loading-line-bar {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 0%;
+  background: hsl(180, 70%, 50%);
+  box-shadow: 2px 0 8px hsl(180, 70%, 50%);
+  transition: width 0.35s ease;
+}
+
+@keyframes lineSweep {
+  0%   { transform: translateX(-100%); opacity: 0;   }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateX(100%);  opacity: 0;   }
+}
+
+/* ── Status text ── */
+.loading-status {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.63rem;
+  letter-spacing: 0.12em;
+  color: rgba(0, 229, 229, 0.45);
+  text-transform: uppercase;
+  min-height: 1em;
+  transition: opacity 0.25s;
+}
+
+/* ── Mobile ── */
+@media (max-width: 480px) {
+  .loading-content { width: 200px; }
+  .loading-title   { font-size: 0.68rem; letter-spacing: 0.3em; }
+  .loading-mark    { width: 40px; height: 40px; }
+}

@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>メッセージ管理端末 — 海蝕機関</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #07090f;
+  --panel: #0c1018;
+  --panel2: #111620;
+  --border: #1a2030;
+  --border2: #263040;
+  --purple: #a78bfa;
+  --purple-dim: #1a1028;
+  --green: #00e676;
+  --green-dim: #002810;
+  --yellow: #ffd740;
+  --red: #ff5252;
+  --cyan: #00d4ff;
+  --text: #cdd6e8;
+  --text2: #7a8aa0;
+  --text3: #445060;
+  --mono: 'Share Tech Mono', monospace;
+  --sans: 'Noto Sans JP', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px;
+  min-height: 100vh; display: flex; flex-direction: column;
+}
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+  background: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(167,139,250,.008) 3px,rgba(167,139,250,.008) 4px);
+}
+.header {
+  background: var(--panel); border-bottom: 1px solid var(--border2);
+  padding: 0 24px; height: 50px; display: flex; align-items: center; gap: 16px;
+  position: sticky; top: 0; z-index: 100; flex-shrink: 0;
+}
+.header-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--purple); box-shadow: 0 0 8px var(--purple); animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.header-title { font-family: var(--mono); font-size: 12px; color: var(--purple); letter-spacing: .2em; }
+.header-sub { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: .1em; }
+.header-sep { flex: 1; }
+.header-status { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+.btn-primary {
+  background: var(--purple-dim); border: 1px solid var(--purple); color: var(--purple);
+  font-family: var(--mono); font-size: 11px; padding: 8px 18px; cursor: pointer;
+  letter-spacing: .1em; transition: background .15s;
+}
+.btn-primary:hover { background: #281840; }
+.btn-dl {
+  background: none; border: 1px solid var(--border2); color: var(--text2);
+  font-family: var(--mono); font-size: 11px; padding: 8px 14px; cursor: pointer;
+  letter-spacing: .08em; transition: all .15s;
+}
+.btn-dl:hover { border-color: var(--purple); color: var(--purple); }
+
+.layout { display: flex; flex: 1; }
+
+/* Sidebar */
+.sidebar {
+  width: 240px; background: var(--panel); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto;
+}
+.sidebar-group { padding: 12px 0; border-bottom: 1px solid var(--border); }
+.sidebar-group-title {
+  padding: 4px 16px 8px; font-family: var(--mono); font-size: 9px; color: var(--text3);
+  letter-spacing: .15em; text-transform: uppercase;
+}
+.sidebar-item {
+  padding: 9px 16px; cursor: pointer; font-family: var(--mono); font-size: 11px;
+  color: var(--text2); border-left: 2px solid transparent; transition: all .1s;
+  display: flex; align-items: center; gap: 10px;
+}
+.sidebar-item:hover { background: var(--panel2); color: var(--text); }
+.sidebar-item.active { color: var(--purple); border-left-color: var(--purple); background: var(--panel2); }
+.sidebar-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+/* Level tabs in sidebar */
+.level-tabs { display: flex; padding: 8px 16px; gap: 4px; flex-wrap: wrap; }
+.level-tab {
+  font-family: var(--mono); font-size: 10px; padding: 3px 8px; cursor: pointer;
+  border: 1px solid var(--border2); color: var(--text3); transition: all .15s;
+}
+.level-tab:hover { border-color: var(--purple); color: var(--purple); }
+.level-tab.active { border-color: var(--purple); color: var(--purple); background: var(--purple-dim); }
+
+/* Main */
+.main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.content-header {
+  padding: 16px 28px; background: var(--panel); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
+}
+.content-title { font-family: var(--mono); font-size: 13px; color: var(--purple); letter-spacing: .12em; flex: 1; }
+.content-desc { font-size: 11px; color: var(--text3); }
+
+.edit-area { flex: 1; overflow-y: auto; padding: 28px; }
+
+/* Level header card */
+.level-header-card {
+  background: var(--panel2); border: 1px solid var(--border2); padding: 18px 22px;
+  display: flex; gap: 20px; align-items: center; margin-bottom: 24px;
+}
+.level-badge-big {
+  width: 56px; height: 56px; display: flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 16px; font-weight: bold; border-radius: 2px; flex-shrink: 0;
+}
+.level-badge-info { flex: 1; }
+
+/* Card sections */
+.card {
+  background: var(--panel2); border: 1px solid var(--border); margin-bottom: 16px;
+}
+.card-head {
+  padding: 12px 18px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+}
+.card-head-icon { font-family: var(--mono); font-size: 12px; color: var(--purple); }
+.card-head-title { font-family: var(--mono); font-size: 11px; color: var(--text2); letter-spacing: .1em; }
+.card-head-desc { font-size: 11px; color: var(--text3); margin-left: auto; }
+.card-body { padding: 16px 18px; }
+
+.field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
+.field:last-child { margin-bottom: 0; }
+.field-label {
+  font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: .1em; text-transform: uppercase;
+}
+.field-input {
+  background: var(--bg); border: 1px solid var(--border2); color: var(--text);
+  padding: 8px 12px; font-family: var(--sans); font-size: 13px; outline: none; transition: border-color .15s;
+  resize: vertical;
+}
+.field-input:focus { border-color: var(--purple); }
+.inline-color { display: flex; gap: 10px; align-items: center; }
+.color-preview { width: 32px; height: 32px; border-radius: 2px; border: 1px solid var(--border2); flex-shrink: 0; }
+
+/* Array editor */
+.arr-item {
+  display: flex; gap: 8px; margin-bottom: 6px;
+}
+.arr-item input, .arr-item textarea {
+  flex: 1; background: var(--bg); border: 1px solid var(--border2); color: var(--text);
+  padding: 7px 10px; font-family: var(--sans); font-size: 12px; outline: none; resize: vertical;
+}
+.arr-item input:focus, .arr-item textarea:focus { border-color: var(--purple); }
+.btn-rm {
+  background: none; border: 1px solid var(--border2); color: var(--text3);
+  padding: 5px 8px; cursor: pointer; font-family: var(--mono); font-size: 11px;
+  transition: all .15s; align-self: flex-start;
+}
+.btn-rm:hover { border-color: var(--red); color: var(--red); }
+.btn-add-arr {
+  background: none; border: 1px dashed var(--border2); color: var(--text3);
+  padding: 6px 12px; cursor: pointer; font-family: var(--mono); font-size: 10px;
+  width: 100%; text-align: left; transition: all .15s; letter-spacing: .05em; margin-top: 4px;
+}
+.btn-add-arr:hover { border-color: var(--purple); color: var(--purple); }
+
+/* Preview */
+.preview-box {
+  background: var(--bg); border: 1px solid var(--border2); padding: 16px 20px; margin-top: 12px;
+}
+.preview-label { font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: .12em; margin-bottom: 10px; }
+
+/* Bottom bar */
+.bottom-bar {
+  background: var(--panel); border-top: 1px solid var(--border);
+  padding: 12px 28px; display: flex; gap: 10px; flex-shrink: 0;
+}
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 70px; right: 24px; background: var(--panel);
+  border: 1px solid var(--purple); color: var(--purple); font-family: var(--mono);
+  font-size: 11px; padding: 10px 18px; opacity: 0; transform: translateY(8px);
+  transition: all .25s; pointer-events: none; z-index: 9998; letter-spacing: .08em;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.green { border-color: var(--green); color: var(--green); }
+
+::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border2); }
+
+.empty-state {
+  padding: 60px; text-align: center; color: var(--text3);
+  font-family: var(--mono); font-size: 12px;
+}
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-dot"></div>
+  <div class="header-title">KAISHOKU // MESSAGE EDITOR</div>
+  <div class="header-sub">メッセージ管理端末 v1.0</div>
+  <div class="header-sep"></div>
+  <div class="header-status" id="modBadge">未変更</div>
+  <button class="btn-dl" onclick="downloadJSON()">↓ JSON</button>
+  <button class="btn-primary" onclick="saveAll()">▶ 保存</button>
+</div>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-group">
+      <div class="sidebar-group-title">メッセージカテゴリ</div>
+      <div class="sidebar-item active" onclick="selectSection('rankTitles', this)">
+        <div class="sidebar-dot"></div>ランクタイトル
+      </div>
+      <div class="sidebar-item" onclick="selectSection('welcomeMessages', this)">
+        <div class="sidebar-dot"></div>ウェルカムメッセージ
+      </div>
+      <div class="sidebar-item" onclick="selectSection('statusMessages', this)">
+        <div class="sidebar-dot"></div>ステータスメッセージ
+      </div>
+      <div class="sidebar-item" onclick="selectSection('dashboardMessages', this)">
+        <div class="sidebar-dot"></div>ダッシュボードメッセージ
+      </div>
+      <div class="sidebar-item" onclick="selectSection('dailyLoginMessages', this)">
+        <div class="sidebar-dot"></div>デイリーログインメッセージ
+      </div>
+      <div class="sidebar-item" onclick="selectSection('hintMessages', this)">
+        <div class="sidebar-dot"></div>ヒントメッセージ
+      </div>
+      <div class="sidebar-item" onclick="selectSection('levelUpMessages', this)">
+        <div class="sidebar-dot"></div>レベルアップメッセージ
+      </div>
+      <div class="sidebar-item" onclick="selectSection('motivationalMessages', this)">
+        <div class="sidebar-dot"></div>モチベーションメッセージ
+      </div>
+    </div>
+    <div class="sidebar-group">
+      <div class="sidebar-group-title">レベルフィルター</div>
+      <div class="level-tabs" id="levelTabs">
+        <div class="level-tab active" onclick="selectLevel(0, this)">LV0</div>
+        <div class="level-tab" onclick="selectLevel(1, this)">LV1</div>
+        <div class="level-tab" onclick="selectLevel(2, this)">LV2</div>
+        <div class="level-tab" onclick="selectLevel(3, this)">LV3</div>
+        <div class="level-tab" onclick="selectLevel(4, this)">LV4</div>
+        <div class="level-tab" onclick="selectLevel(5, this)">LV5</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="content-header">
+      <div>
+        <div class="content-title" id="sectionTitle">// RANK TITLES</div>
+        <div class="content-desc" id="sectionDesc">各レベルのランク名・英語タイトル・カラー・ステータスを設定</div>
+      </div>
+    </div>
+    <div class="edit-area" id="editArea"></div>
+    <div class="bottom-bar">
+      <button class="btn-primary" onclick="saveAll()">▶ 変更を保存 (localStorage)</button>
+      <button class="btn-dl" onclick="downloadJSON()">↓ level-messages-data.json をダウンロード</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+let messages = {"rankTitles": {"0": {"title": "見習い機関員", "titleEn": "TRAINEE AGENT", "color": "#6b7280", "colorNote": "グレー", "status": "研修中"}, "1": {"title": "初級機関員", "titleEn": "JUNIOR AGENT", "color": "#3b82f6", "colorNote": "ブルー", "status": "任務遂行中"}, "2": {"title": "中級機関員", "titleEn": "AGENT", "color": "#8b5cf6", "colorNote": "パープル", "status": "任務遂行中"}, "3": {"title": "上級機関員", "titleEn": "SENIOR AGENT", "color": "#10b981", "colorNote": "グリーン", "status": "重要任務担当"}, "4": {"title": "ベテラン機関員", "titleEn": "VETERAN AGENT", "color": "#f59e0b", "colorNote": "オレンジ", "status": "特殊任務担当"}, "5": {"title": "エリート機関員", "titleEn": "ELITE AGENT", "color": "#ef4444", "colorNote": "レッド", "status": "最高機密任務担当"}}, "welcomeMessages": {"0": ["海蝕機関へようこそ。まずは基礎訓練から始めましょう。", "機関員としての第一歩です。システムに慣れてください。", "研修期間中です。各部門の情報を確認してください。"], "1": {"title": "初級機関員として認定されました", "message": "基礎訓練を修了し、実務への参加が許可されました。各部門の活動に参加し、経験を積んでください。"}, "2": {"title": "中級機関員に昇格", "message": "実務経験を評価され、より重要な任務へのアクセスが許可されました。収束装置の運用にも精通してきています。"}, "3": {"title": "上級機関員として承認", "message": "高度な専門知識と実績が認められました。海蝕現象に関する機密情報へのアクセスが可能になります。"}, "4": {"title": "ベテラン機関員の地位を獲得", "message": "豊富な経験と卓越した能力により、特殊任務の遂行が認められました。機関の中核を担う存在です。"}, "5": {"title": "エリート機関員として最高位に到達", "message": "最高レベルのクリアランスを取得しました。機関の最も重要な機密にアクセスできる、限られた存在の一人です。"}}, "statusMessages": {"0": {"main": "基礎研修を受講中", "sub": "レベル1で実務への参加が可能になります"}, "1": {"main": "各部門の情報にアクセス可能", "sub": "より多くの機能を解除するために経験を積みましょう"}, "2": {"main": "部門詳細情報へのアクセス許可", "sub": "収束装置の運用実績を積んでいます"}, "3": {"main": "海蝕現象アーカイブへのアクセス許可", "sub": "高度な機密情報の閲覧が可能です"}, "4": {"main": "収束案件データベースへのアクセス許可", "sub": "特殊任務の遂行権限を持っています"}, "5": {"main": "全システムへのフルアクセス許可", "sub": "機関の最高機密情報へアクセス可能です"}}, "dashboardMessages": {"0": {"greeting": "ようこそ、研修生", "description": "これからあなたは海蝕機関の一員として、現実の歪みと戦うことになります。まずは各部門の情報を確認し、システムに慣れてください。"}, "1": {"greeting": "お疲れ様です、初級機関員", "description": "基礎訓練を完了し、実務への参加が認められました。各部門と連携しながら、海蝕現象の収束に貢献してください。"}, "2": {"greeting": "お帰りなさい、機関員", "description": "実績を評価され、中級機関員として承認されました。より重要な任務に参加し、収束技術の習得を進めてください。"}, "3": {"greeting": "お疲れ様です、上級機関員", "description": "豊富な経験と専門知識により、機密情報へのアクセスが許可されました。海蝕現象の本質に迫る研究に参加できます。"}, "4": {"greeting": "ようこそ、ベテラン機関員", "description": "特殊任務の遂行が認められた、機関の中核メンバーです。あなたの経験と判断が、多くの収束活動を成功に導いています。"}, "5": {"greeting": "お帰りなさい、エリート機関員", "description": "最高位のクリアランスを持つ、機関の精鋭です。すべての機密情報へアクセスでき、最重要任務の指揮を執ることができます。"}}, "dailyLoginMessages": {"0": {"title": "研修日誌を記録", "description": "日々の学習記録が蓄積されています"}, "1": {"title": "活動記録を更新", "description": "実務への参加が記録されました"}, "2": {"title": "任務報告を提出", "description": "継続的な活動が評価されています"}, "3": {"title": "機密アクセスログを記録", "description": "重要情報への定期的なアクセスを確認"}, "4": {"title": "特殊任務ログを更新", "description": "ベテラン機関員としての活動を記録"}, "5": {"title": "エリート機関員の活動を記録", "description": "最高機密レベルのアクセスログ"}}, "hintMessages": {"0": ["チャット機能で他の機関員と交流し、経験値を獲得できます", "各部門の情報を閲覧すると経験値が得られます", "毎日ログインすることで、着実に成長できます"], "1": ["部門詳細ページを閲覧して、より深い知識を得ましょう", "継続的なログインでストリークボーナスを獲得できます", "レベル2で各部門の詳細情報にアクセスできます"], "2": ["海蝕現象アーカイブへのアクセスまであと少しです", "定期的なアクティビティで経験値を獲得しましょう", "上級機関員を目指して活動を続けてください"], "3": ["収束案件データベースへのアクセスが間もなく可能になります", "あなたは機関の重要なメンバーです", "ベテラン機関員まであと一歩です"], "4": ["最高レベルまであと少しです", "エリート機関員への道が開かれつつあります", "あなたの経験と知識は機関にとって貴重です"], "5": ["すべてのコンテンツにアクセス可能です", "最高レベルに到達しました。おめでとうございます", "機関の精鋭として、引き続き活躍してください"]}, "levelUpMessages": {"1": {"title": "初級機関員に昇格", "message": "おめでとうございます。実務への参加が許可されました。", "unlocked": "各部門情報、機関員チャット"}, "2": {"title": "中級機関員に昇格", "message": "あなたの実績が認められました。より重要な任務に参加できます。", "unlocked": "各部門の詳細情報"}, "3": {"title": "上級機関員に昇格", "message": "高度な専門知識が評価されました。機密情報へのアクセスが許可されます。", "unlocked": "海蝕現象アーカイブ"}, "4": {"title": "ベテラン機関員に昇格", "message": "卓越した能力により、特殊任務の遂行が認められました。", "unlocked": "収束案件データベース"}, "5": {"title": "エリート機関員に到達", "message": "最高位のクリアランスを取得しました。機関の精鋭です。", "unlocked": "機密文書アーカイブ、全システムへのフルアクセス"}}, "motivationalMessages": {"0": ["一歩ずつ、着実に前進しましょう", "学ぶことは多いですが、焦らず進んでください", "あなたの成長を期待しています"], "1": ["順調に成長しています", "実務経験を積んで、さらなる高みを目指しましょう", "あなたの活動が機関を支えています"], "2": ["中級機関員として順調です", "専門性を高めて上級を目指しましょう", "あなたの貢献に感謝します"], "3": ["上級機関員としての実力を発揮しています", "機関の重要な戦力です", "あなたの知識が多くの任務を成功に導いています"], "4": ["ベテランとして頼もしい存在です", "最高レベルまであと一歩です", "あなたの経験は機関の財産です"], "5": ["エリート機関員として完璧です", "最高のパフォーマンスを維持しています", "機関の精鋭として、素晴らしい活躍です"]}};
+let currentSection = 'rankTitles';
+let currentLevel = 0;
+let modified = false;
+
+const LEVEL_COLORS = ['#6b7280','#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444'];
+const LEVEL_TITLES_EN = ['TRAINEE','JUNIOR','AGENT','SENIOR','VETERAN','ELITE'];
+
+const SECTION_META = {
+  rankTitles: { title: '// RANK TITLES', desc: '各レベルのランク名・英語タイトル・カラー・ステータスを設定' },
+  welcomeMessages: { title: '// WELCOME MESSAGES', desc: 'レベルアップ時に表示されるウェルカムメッセージ' },
+  statusMessages: { title: '// STATUS MESSAGES', desc: 'メインステータスとサブステータスの文言' },
+  dashboardMessages: { title: '// DASHBOARD MESSAGES', desc: 'ダッシュボードのグリーティング文言' },
+  dailyLoginMessages: { title: '// DAILY LOGIN MESSAGES', desc: 'デイリーログイン時のポップアップメッセージ' },
+  hintMessages: { title: '// HINT MESSAGES', desc: 'ヒント欄に表示されるメッセージ一覧（配列）' },
+  levelUpMessages: { title: '// LEVEL UP MESSAGES', desc: 'レベルアップ通知のタイトル・メッセージ・解放内容' },
+  motivationalMessages: { title: '// MOTIVATIONAL MESSAGES', desc: 'モチベーションを高めるランダムメッセージ一覧（配列）' },
+};
+
+function markModified() {
+  modified = true;
+  document.getElementById('modBadge').textContent = '● 未保存の変更あり';
+  document.getElementById('modBadge').style.color = 'var(--yellow)';
+}
+
+function selectSection(key, el) {
+  currentSection = key;
+  document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+  el.classList.add('active');
+  const meta = SECTION_META[key] || { title: '// ' + key.toUpperCase(), desc: '' };
+  document.getElementById('sectionTitle').textContent = meta.title;
+  document.getElementById('sectionDesc').textContent = meta.desc;
+  // Show/hide level filter
+  const hasLv0 = messages[key]['0'] !== undefined;
+  document.getElementById('levelTabs').style.display = 'flex';
+  renderEdit();
+}
+
+function selectLevel(lv, el) {
+  currentLevel = lv;
+  document.querySelectorAll('.level-tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  renderEdit();
+}
+
+function renderEdit() {
+  const section = messages[currentSection];
+  const lv = String(currentLevel);
+  const data = section[lv];
+  const color = LEVEL_COLORS[currentLevel];
+  const el = document.getElementById('editArea');
+
+  if (data === undefined) {
+    el.innerHTML = `<div class="empty-state">LEVEL ${currentLevel} のデータが存在しません</div>`;
+    return;
+  }
+
+  // Level header
+  const headerHtml = `
+    <div class="level-header-card">
+      <div class="level-badge-big" style="background:${color}22;color:${color};border:1px solid ${color}40">
+        LV${currentLevel}
+      </div>
+      <div class="level-badge-info">
+        <div style="font-size:16px;font-weight:500;margin-bottom:2px">LEVEL ${currentLevel}</div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3)">${LEVEL_TITLES_EN[currentLevel]}</div>
+      </div>
+    </div>`;
+
+  // Render based on section type
+  let formHtml = '';
+
+  if (currentSection === 'rankTitles') {
+    formHtml = `
+      <div class="card">
+        <div class="card-head"><div class="card-head-icon">★</div><div class="card-head-title">RANK TITLE</div></div>
+        <div class="card-body">
+          <div class="grid2">
+            <div class="field"><label class="field-label">日本語タイトル</label>
+              <input class="field-input" id="f_title" value="${esc(data.title||'')}" oninput="updateField('title',this.value)"></div>
+            <div class="field"><label class="field-label">英語タイトル (titleEn)</label>
+              <input class="field-input" id="f_titleEn" value="${esc(data.titleEn||'')}" oninput="updateField('titleEn',this.value)"></div>
+            <div class="field"><label class="field-label">ステータス表示</label>
+              <input class="field-input" id="f_status" value="${esc(data.status||'')}" oninput="updateField('status',this.value)"></div>
+            <div class="field"><label class="field-label">カラーコード</label>
+              <div class="inline-color">
+                <input type="color" value="${data.color||'#888888'}" id="f_colorPicker" onchange="updateColor(this.value)" style="width:40px;height:36px;background:none;border:1px solid var(--border2);cursor:pointer;padding:2px;">
+                <input class="field-input" id="f_color" value="${esc(data.color||'')}" oninput="syncColor(this.value)" style="flex:1">
+              </div>
+            </div>
+            <div class="field"><label class="field-label">カラーメモ</label>
+              <input class="field-input" id="f_colorNote" value="${esc(data.colorNote||'')}" oninput="updateField('colorNote',this.value)"></div>
+          </div>
+          <div class="preview-box" style="border-left:3px solid ${data.color||'#888'}">
+            <div class="preview-label">PREVIEW</div>
+            <div style="font-size:18px;font-weight:500;color:${data.color||'#888'}">${data.titleEn||''}</div>
+            <div style="font-size:14px;margin-top:4px">${data.title||''}</div>
+            <div style="font-family:var(--mono);font-size:11px;color:var(--text3);margin-top:4px">${data.status||''}</div>
+          </div>
+        </div>
+      </div>`;
+
+  } else if (currentSection === 'hintMessages' || currentSection === 'motivationalMessages') {
+    const arr = Array.isArray(data) ? data : [];
+    formHtml = `
+      <div class="card">
+        <div class="card-head"><div class="card-head-icon">✦</div><div class="card-head-title">${currentSection === 'hintMessages' ? 'HINT MESSAGES' : 'MOTIVATIONAL MESSAGES'}</div><div class="card-head-desc">${arr.length}件</div></div>
+        <div class="card-body">
+          <div id="arrEditor">
+            ${arr.map((v,i) => `<div class="arr-item" id="ai_${i}">
+              <textarea rows="2" oninput="updateArr(${i},this.value)">${esc(v)}</textarea>
+              <button class="btn-rm" onclick="removeArr(${i})">−</button>
+            </div>`).join('')}
+          </div>
+          <button class="btn-add-arr" onclick="addArr()">+ メッセージを追加</button>
+        </div>
+      </div>`;
+
+  } else {
+    // Generic key-value form
+    const fields = Object.entries(data);
+    formHtml = `
+      <div class="card">
+        <div class="card-head"><div class="card-head-icon">✎</div><div class="card-head-title">${currentSection.toUpperCase()}</div></div>
+        <div class="card-body">
+          ${fields.map(([k, v]) => `
+            <div class="field">
+              <label class="field-label">${k}</label>
+              ${v.length > 60 ? `<textarea class="field-input" rows="3" id="gf_${k}" oninput="updateField('${k}',this.value)">${esc(v)}</textarea>` : `<input class="field-input" id="gf_${k}" value="${esc(v)}" oninput="updateField('${k}',this.value)">`}
+            </div>`).join('')}
+        </div>
+      </div>`;
+  }
+
+  el.innerHTML = headerHtml + formHtml;
+}
+
+// ─── Update helpers ───
+function getTarget() {
+  return messages[currentSection][String(currentLevel)];
+}
+
+function updateField(key, val) {
+  const target = getTarget();
+  if (target) { target[key] = val; markModified(); }
+}
+
+function updateColor(val) {
+  document.getElementById('f_color').value = val;
+  updateField('color', val);
+  renderEdit();
+}
+
+function syncColor(val) {
+  document.getElementById('f_colorPicker').value = val;
+  updateField('color', val);
+}
+
+function updateArr(idx, val) {
+  const target = getTarget();
+  if (Array.isArray(target)) { target[idx] = val; markModified(); }
+}
+
+function removeArr(idx) {
+  const target = getTarget();
+  if (Array.isArray(target)) { target.splice(idx, 1); markModified(); renderEdit(); }
+}
+
+function addArr() {
+  const target = getTarget();
+  if (Array.isArray(target)) { target.push(''); markModified(); renderEdit(); }
+}
+
+// ─── Save & Download ───
+function saveAll() {
+  localStorage.setItem('kaishoku_level_messages_override', JSON.stringify(messages));
+  modified = false;
+  document.getElementById('modBadge').textContent = '保存済み ✓';
+  document.getElementById('modBadge').style.color = 'var(--green)';
+  toast('localStorageに保存しました ✓', 'green');
+  setTimeout(() => {
+    document.getElementById('modBadge').textContent = '未変更';
+    document.getElementById('modBadge').style.color = 'var(--text3)';
+  }, 3000);
+}
+
+function downloadJSON() {
+  const blob = new Blob([JSON.stringify(messages, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'level-messages-data.json';
+  a.click();
+  toast('level-messages-data.json をダウンロードしました ✓', 'green');
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toast(msg, type='') {
+  const t = document.getElementById('toastEl');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.className = 'toast', 2800);
+}
+
+// Init
+renderEdit();
+</script>
+</body>
+</html>

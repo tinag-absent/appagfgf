@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>緊急通報 — 海蝕機関</title>
+  <link rel="icon" type="image/png" href="./images/favicon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;}
+    :root{
+      --red:#ff2020;--red2:#ff5252;--red-dim:rgba(255,32,32,.12);
+      --yellow:#ffd740;--bg:#030205;
+      --mono:'Share Tech Mono',monospace;
+    }
+    body{
+      background:var(--bg);color:#fff;
+      font-family:var(--mono);min-height:100vh;
+      overflow-x:hidden;
+      position:relative;
+    }
+    /* Animated BG */
+    body::before{
+      content:'';position:fixed;inset:0;
+      background:
+        repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(255,20,20,.04) 2px,rgba(255,20,20,.04) 3px);
+      animation:scanmove 8s linear infinite;pointer-events:none;z-index:0;
+    }
+    @keyframes scanmove{ from{background-position:0 0} to{background-position:0 100px} }
+
+    /* Glitch overlay */
+    .glitch-overlay{
+      position:fixed;inset:0;pointer-events:none;z-index:1;
+      background:rgba(255,0,0,0);
+      animation:glitch-flash 4s infinite;
+    }
+    @keyframes glitch-flash{
+      0%,90%,100%{background:rgba(255,0,0,0);}
+      91%{background:rgba(255,0,0,.06);}
+      93%{background:rgba(255,0,0,0);}
+      95%{background:rgba(255,0,0,.04);}
+    }
+
+    .page{
+      position:relative;z-index:2;
+      min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+      padding:2rem 1rem;
+    }
+
+    /* ALERT HEADER */
+    .alert-header{
+      text-align:center;margin-bottom:3rem;
+      animation:header-pulse 1.5s ease-in-out infinite;
+    }
+    @keyframes header-pulse{
+      0%,100%{opacity:1;}50%{opacity:.7;}
+    }
+    .alert-icon{
+      font-size:4rem;margin-bottom:1rem;display:block;
+      animation:icon-spin 0s;
+    }
+    .alert-title{
+      font-size:clamp(1.8rem,5vw,3rem);
+      color:var(--red2);letter-spacing:.2em;
+      text-shadow:0 0 20px var(--red),0 0 60px rgba(255,32,32,.4);
+      margin-bottom:.5rem;
+    }
+    .alert-sub{
+      font-size:.75rem;color:rgba(255,82,82,.7);
+      letter-spacing:.15em;
+    }
+
+    /* GSI meter */
+    .gsi-container{
+      width:100%;max-width:600px;
+      background:rgba(0,0,0,.5);border:1px solid rgba(255,32,32,.3);
+      padding:1.5rem 2rem;margin-bottom:2rem;
+      position:relative;
+    }
+    .gsi-container::before{
+      content:'DANGER ZONE';
+      position:absolute;top:-10px;left:1rem;
+      background:var(--bg);padding:0 .5rem;
+      font-size:.65rem;color:var(--red2);letter-spacing:.12em;
+    }
+    .gsi-header{display:flex;justify-content:space-between;margin-bottom:.75rem;}
+    .gsi-label{font-size:.7rem;color:rgba(255,255,255,.4);letter-spacing:.1em;}
+    .gsi-number{
+      font-size:2.5rem;color:var(--red2);
+      text-shadow:0 0 16px var(--red);
+      animation:num-flicker 3s infinite;
+    }
+    @keyframes num-flicker{
+      0%,98%{opacity:1;}99%{opacity:.3;}100%{opacity:1;}
+    }
+    .gsi-bar{
+      height:8px;background:rgba(255,255,255,.08);
+      margin-bottom:.5rem;overflow:hidden;
+    }
+    .gsi-fill{
+      height:100%;width:0;
+      background:linear-gradient(90deg,#ff4500,#ff0000);
+      transition:width 1.5s ease;
+      box-shadow:0 0 12px var(--red);
+    }
+    .gsi-zones{display:flex;justify-content:space-between;margin-top:.3rem;}
+    .gsi-zone{font-size:.6rem;opacity:.5;}
+
+    /* System log */
+    .syslog{
+      width:100%;max-width:600px;
+      background:rgba(0,0,0,.5);border:1px solid rgba(255,32,32,.2);
+      padding:1rem 1.25rem;margin-bottom:2rem;
+      max-height:180px;overflow-y:auto;
+    }
+    .syslog-title{font-size:.65rem;color:rgba(255,82,82,.5);letter-spacing:.12em;margin-bottom:.75rem;}
+    .log-line{
+      font-size:.72rem;color:rgba(255,255,255,.5);
+      padding:.2rem 0;border-bottom:1px solid rgba(255,255,255,.04);
+      display:flex;gap:.75rem;
+    }
+    .log-time{color:rgba(255,82,82,.6);flex-shrink:0;}
+    .log-msg{}
+    .log-line.warn .log-msg{color:var(--yellow);}
+    .log-line.crit .log-msg{color:var(--red2);}
+    .log-line.new{animation:log-appear .3s ease;}
+    @keyframes log-appear{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:none;}}
+
+    /* Action panel */
+    .action-panel{
+      width:100%;max-width:600px;
+      display:grid;grid-template-columns:1fr 1fr;gap:.75rem;
+      margin-bottom:2rem;
+    }
+    .action-btn{
+      background:none;border:1px solid rgba(255,82,82,.3);
+      color:rgba(255,255,255,.7);padding:1rem;
+      font-family:var(--mono);font-size:.75rem;letter-spacing:.08em;
+      cursor:pointer;transition:all .2s;text-align:left;
+    }
+    .action-btn:hover{
+      border-color:var(--red2);color:var(--red2);
+      background:var(--red-dim);
+    }
+    .action-btn .ab-num{
+      font-size:.6rem;color:rgba(255,82,82,.5);margin-bottom:.3rem;
+    }
+    .action-btn.primary-btn{
+      border-color:var(--red2);color:var(--red2);
+      background:var(--red-dim);
+      grid-column:span 2;
+      padding:1.2rem;text-align:center;font-size:.85rem;
+      letter-spacing:.15em;
+    }
+    .action-btn.primary-btn:hover{
+      background:rgba(255,32,32,.2);
+      box-shadow:0 0 20px rgba(255,32,32,.3);
+    }
+    .action-btn.activated{
+      border-color:#10b981;color:#10b981;
+      background:rgba(16,185,129,.12);
+      pointer-events:none;
+    }
+
+    /* Secret message */
+    .secret-msg{
+      width:100%;max-width:600px;
+      padding:1.5rem;
+      background:rgba(0,0,0,.7);
+      border:1px solid rgba(255,215,64,.2);
+      display:none;
+    }
+    .secret-msg.visible{display:block;animation:reveal .5s ease;}
+    @keyframes reveal{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
+    .sm-label{font-size:.65rem;color:var(--yellow);letter-spacing:.15em;margin-bottom:.75rem;}
+    .sm-text{
+      font-size:.8rem;color:rgba(255,215,64,.8);line-height:1.8;
+      white-space:pre-line;
+    }
+
+    /* footer */
+    .emg-footer{
+      font-size:.6rem;color:rgba(255,255,255,.15);
+      letter-spacing:.1em;text-align:center;margin-top:1rem;
+    }
+
+    ::-webkit-scrollbar{width:4px;}
+    ::-webkit-scrollbar-track{background:transparent;}
+    ::-webkit-scrollbar-thumb{background:rgba(255,32,32,.3);}
+  </style>
+</head>
+<body>
+  <div class="glitch-overlay"></div>
+
+  <div class="page">
+
+    <div class="alert-header">
+      <span class="alert-icon">⚠</span>
+      <div class="alert-title">緊急通報システム</div>
+      <div class="alert-sub">EMERGENCY RESPONSE TERMINAL // KAISHOKU AGENCY</div>
+    </div>
+
+    <!-- GSI Meter -->
+    <div class="gsi-container">
+      <div class="gsi-header">
+        <span class="gsi-label">GLOBAL STABILITY INDEX — 現在値</span>
+        <span class="gsi-number" id="gsiDisplay">—</span>
+      </div>
+      <div class="gsi-bar"><div class="gsi-fill" id="gsiFill"></div></div>
+      <div class="gsi-zones">
+        <span class="gsi-zone">0% 安定</span>
+        <span class="gsi-zone">5% 警戒</span>
+        <span class="gsi-zone">15% 危機</span>
+        <span class="gsi-zone">30% 崩壊</span>
+      </div>
+    </div>
+
+    <!-- System Log -->
+    <div class="syslog">
+      <div class="syslog-title">// SYSTEM LOG — リアルタイム更新</div>
+      <div id="logContainer"></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="action-panel" id="actionPanel">
+      <button class="action-btn" onclick="activateProtocol('evacuation')">
+        <div class="ab-num">PROTOCOL-01</div>
+        民間人避難要請
+      </button>
+      <button class="action-btn" onclick="activateProtocol('backup')">
+        <div class="ab-num">PROTOCOL-02</div>
+        応援部隊の要請
+      </button>
+      <button class="action-btn" onclick="activateProtocol('module')">
+        <div class="ab-num">PROTOCOL-03</div>
+        緊急モジュール展開
+      </button>
+      <button class="action-btn" onclick="activateProtocol('barrier')">
+        <div class="ab-num">PROTOCOL-04</div>
+        次元バリア設置
+      </button>
+      <button class="action-btn primary-btn" id="convergenceBtn" onclick="initiateConvergence()">
+        ▶▶ 収束プロトコルを開始する ◀◀
+      </button>
+    </div>
+
+    <!-- Secret message (unlocks after convergence) -->
+    <div class="secret-msg" id="secretMsg">
+      <div class="sm-label">// CLASSIFIED TRANSMISSION — 機密通信受信</div>
+      <div class="sm-text" id="secretText"></div>
+    </div>
+
+    <div class="emg-footer" id="emgFooter">
+      KAISHOKU AGENCY // EMERGENCY SYSTEM v2.6 // GSI MONITOR ACTIVE
+    </div>
+
+  </div>
+
+  <script src="./js/error-handler.js"></script>
+  <script src="./js/data-bundle.js"></script>
+  <script src="./js/loading.js"></script>
+  <script src="./js/progress.js"></script>
+  <script src="./js/story-engine.js"></script>
+  <script src="./js/notifications.js"></script>
+  </script>
+  
+  <script>
+  (function(){
+    // Access check: anomaly_score >= 20 OR level >= 4
+    var user = ProgressSystem.getUserData();
+    var stateRaw = localStorage.getItem('kaishoku_story_state');
+    var state = stateRaw ? JSON.parse(stateRaw) : {};
+    var anomaly = state.variables?.anomaly_score || 0;
+    var level = user?.level || 0;
+
+    if (!user) { location.href='./login.html'; return; }
+    // Soft-lock: suggest going back if not in a crisis
+    var inCrisis = anomaly >= 20 || level >= 4;
+
+    // Log messages pool
+    var LOGS_NORMAL = [
+      {t:'warn', m:'GSI上昇検知 — 大分港沿岸エリア'},
+      {t:'crit', m:'次元境界薄化 — 臨界値に近づいています'},
+      {t:'warn', m:'DEAN センサー #7 応答なし'},
+      {t:'crit', m:'海蝕実体の大量出現を確認 — 大分市地下街'},
+      {t:'norm', m:'収束部門へ緊急通報を転送中...'},
+      {t:'warn', m:'民間人との接触リスク：高'},
+      {t:'crit', m:'物理法則の局所的破綻を観測'},
+      {t:'norm', m:'GSI モニタリングシステム稼働中'},
+      {t:'warn', m:'次元裂目の拡大を検知'},
+    ];
+
+    var LOGS_CRISIS = [
+      {t:'crit', m:'警告 — 収束不能領域の形成を確認'},
+      {t:'crit', m:'概念捕食者の群れが観測されました'},
+      {t:'warn', m:'機関員の意識変容を検知 — 要確認'},
+      {t:'crit', m:'GSI 臨界点突破 — 即時対応が必要'},
+      {t:'warn', m:'「海は削れている」— 送信元不明'},
+      {t:'crit', m:'記憶消失事案 — 被害者数不明'},
+    ];
+
+    var anomalyGSI = Math.min(30, 3.2 + (anomaly * 0.4));
+    var gsiEl = document.getElementById('gsiDisplay');
+    var fillEl = document.getElementById('gsiFill');
+
+    // Animate GSI
+    setTimeout(function(){
+      gsiEl.textContent = anomalyGSI.toFixed(1) + '%';
+      fillEl.style.width = ((anomalyGSI/30)*100) + '%';
+      if (anomalyGSI >= 15) fillEl.style.background = 'linear-gradient(90deg,#ff4500,#ff0000,#ff00ff)';
+    }, 500);
+
+    // Log rotation
+    var logEl = document.getElementById('logContainer');
+    var logIdx = 0;
+    var logPool = inCrisis ? LOGS_CRISIS.concat(LOGS_NORMAL) : LOGS_NORMAL;
+
+    function addLog() {
+      var entry = logPool[logIdx % logPool.length];
+      logIdx++;
+      var now = new Date();
+      var ts = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0') + ':' + now.getSeconds().toString().padStart(2,'0');
+      var line = document.createElement('div');
+      line.className = 'log-line new ' + (entry.t === 'crit' ? 'crit' : entry.t === 'warn' ? 'warn' : '');
+      line.innerHTML = '<span class="log-time">[' + ts + ']</span><span class="log-msg">' + entry.m + '</span>';
+      logEl.insertBefore(line, logEl.firstChild);
+      if (logEl.children.length > 12) logEl.removeChild(logEl.lastChild);
+    }
+
+    for(var i=0;i<5;i++) addLog();
+    setInterval(addLog, inCrisis ? 2000 : 3500);
+
+    // Protocol activation
+    var activated = {};
+    window.activateProtocol = function(key) {
+      if (activated[key]) return;
+      activated[key] = true;
+      var labels = {
+        evacuation:'民間人避難要請を送信しました',
+        backup:'応援部隊の出動要請を送信しました',
+        module:'緊急モジュール展開を承認しました',
+        barrier:'次元バリア設置コマンドを転送しました'
+      };
+      document.querySelectorAll('.action-btn').forEach(function(b){
+        if(b.getAttribute('onclick') && b.getAttribute('onclick').includes(key)){
+          b.classList.add('activated');
+          b.textContent = '✓ ' + (labels[key] || '送信完了');
+        }
+      });
+      addLog();
+
+      // Track activity
+      ProgressSystem.trackActivity('chat_message');
+    };
+
+    // Convergence
+    var convergenceInitiated = false;
+    window.initiateConvergence = function() {
+      if (convergenceInitiated) return;
+      convergenceInitiated = true;
+
+      var btn = document.getElementById('convergenceBtn');
+      btn.textContent = '収束プロトコル実行中...';
+      btn.classList.add('activated');
+
+      // Dramatic sequence
+      var steps = [
+        {t:300,  m:'収束プロトコル起動 — フェーズ1'},
+        {t:800,  m:'次元固定アンカー展開...'},
+        {t:1400, m:'CRIT: 概念固定フィールド生成'},
+        {t:2000, m:'実体の活動が低下しています'},
+        {t:2800, m:'GSI値が安定化傾向に転じました'},
+        {t:3600, m:'収束率 67% — 継続中'},
+        {t:4500, m:'収束率 89% — もうすぐです'},
+        {t:5400, m:'収束完了 — 事案は収束されました'},
+      ];
+
+      steps.forEach(function(s){
+        setTimeout(function(){
+          var entry = {t: s.m.startsWith('CRIT') ? 'crit' : 'warn', m: s.m};
+          var now = new Date();
+          var ts = now.getHours().toString().padStart(2,'0') + ':' + now.getMinutes().toString().padStart(2,'0') + ':' + now.getSeconds().toString().padStart(2,'0');
+          var line = document.createElement('div');
+          line.className = 'log-line new ' + (entry.t === 'crit' ? 'crit' : 'warn');
+          line.innerHTML = '<span class="log-time">[' + ts + ']</span><span class="log-msg">' + entry.m + '</span>';
+          logEl.insertBefore(line, logEl.firstChild);
+        }, s.t);
+      });
+
+      // Reveal secret message
+      setTimeout(function(){
+        btn.textContent = '✓ 収束完了';
+        gsiEl.textContent = (Math.max(1.5, anomalyGSI - 8).toFixed(1)) + '%';
+        fillEl.style.width = (Math.max(5, ((anomalyGSI-8)/30)*100)) + '%';
+        fillEl.style.background = 'linear-gradient(90deg,#00e676,#00bcd4)';
+
+        var msgs = [
+          '収束作戦は成功しました。\n\n今回の事案で多くのことを学びました。\nしかし、これは終わりではありません。\n\nGSIは一時的に低下しましたが、\n根本的な原因は依然として不明です。\n\n次元の浸食は——静かに、確実に——続いています。\n\n「海は削れている」',
+          '...聞こえますか？\n\nあなたが収束させたものは、\n本当に「消えた」のでしょうか？\n\nそれとも——\n別の場所に「移動」しただけでは？\n\n記録を確認してください。\n失われた記憶の中に、真実があります。',
+        ];
+        var secretText = anomaly >= 40
+          ? '< CLASSIFIED // LEVEL 5 REQUIRED >\n\n' + msgs[1]
+          : msgs[0];
+
+        document.getElementById('secretText').textContent = secretText;
+        document.getElementById('secretMsg').classList.add('visible');
+
+        // Update story state
+        if (state.flags) state.flags['emergency_resolved'] = true;
+        if (state.variables) state.variables.anomaly_score = Math.max(0, anomaly - 15);
+        localStorage.setItem('kaishoku_story_state', JSON.stringify(state));
+
+        ProgressSystem.trackActivity('mission_complete');
+      }, 5800);
+    };
+  })();
+  </script>
+</body>
+</html>

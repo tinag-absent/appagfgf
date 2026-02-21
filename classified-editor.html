@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>機密文書エディタ — 海蝕機関</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#07090f;--panel:#0c1018;--panel2:#111620;--border:#1a2030;--border2:#263040;
+  --cyan:#00d4ff;--cyan-dim:#002838;--green:#00e676;--green-dim:#002810;
+  --yellow:#ffd740;--yellow-dim:#2a2000;--red:#ff5252;--red-dim:#2a0808;
+  --text:#cdd6e8;--text2:#7a8aa0;--text3:#445060;
+  --mono:'Share Tech Mono',monospace;--sans:'Noto Sans JP',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;min-height:100vh;display:flex;flex-direction:column;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(255,82,82,.008) 3px,rgba(255,82,82,.008) 4px);}
+.hdr{background:var(--panel);border-bottom:1px solid #2a1010;padding:0 24px;height:50px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--red);box-shadow:0 0 8px var(--red);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.hdr-title{font-family:var(--mono);font-size:12px;color:var(--red);letter-spacing:.2em;}
+.hdr-sub{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.classified-badge{background:var(--red-dim);border:1px solid var(--red);color:var(--red);font-family:var(--mono);font-size:9px;padding:3px 10px;letter-spacing:.12em;}
+.hdr-sep{flex:1;}
+.btn{background:none;border:1px solid var(--border2);color:var(--text2);font-family:var(--mono);font-size:10px;padding:6px 14px;cursor:pointer;letter-spacing:.08em;transition:all .15s;}
+.btn:hover{border-color:var(--red);color:var(--red);}
+.btn-green{background:var(--green-dim);border:1px solid var(--green);color:var(--green);}
+.btn-green:hover{background:#004020;border-color:var(--green);}
+.btn-red{background:var(--red-dim);border:1px solid var(--red);color:var(--red);}
+
+.main{display:flex;flex:1;overflow:hidden;height:calc(100vh - 50px);}
+
+/* List */
+.list{width:280px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+.list-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.list-title{font-family:var(--mono);font-size:11px;color:var(--red);letter-spacing:.1em;flex:1;}
+.doc-list{overflow-y:auto;flex:1;}
+.doc-item{padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;}
+.doc-item:hover{background:var(--panel2);}
+.doc-item.active{background:#160808;border-left:2px solid var(--red);}
+.doc-id{font-family:var(--mono);font-size:9px;color:var(--text3);margin-bottom:3px;}
+.doc-title-sm{font-size:12px;color:var(--text);margin-bottom:4px;line-height:1.4;}
+.doc-meta-row{display:flex;gap:6px;align-items:center;}
+.doc-cat{font-family:var(--mono);font-size:9px;padding:1px 6px;border-radius:2px;}
+.doc-hidden{font-family:var(--mono);font-size:9px;color:var(--text3);}
+
+/* Edit area */
+.edit{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.edit-tabs{display:flex;background:var(--panel);border-bottom:1px solid var(--border);}
+.tab{padding:10px 18px;font-family:var(--mono);font-size:11px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.06em;transition:color .15s;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--red);border-bottom-color:var(--red);}
+.tab-body{flex:1;overflow-y:auto;padding:24px;}
+.tab-pane{display:none;}
+.tab-pane.active{display:block;}
+
+.empty{height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--text3);}
+.empty-icon{font-family:var(--mono);font-size:36px;opacity:.3;}
+
+/* Form */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px;}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field.full{grid-column:span 2;}
+.field-label{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;}
+.field-input{background:var(--panel2);border:1px solid var(--border2);color:var(--text);padding:8px 12px;font-family:var(--sans);font-size:12px;outline:none;transition:border-color .15s;resize:vertical;}
+.field-input:focus{border-color:var(--red);}
+select.field-input{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237a8aa0'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:24px;}
+
+.toggle-row{display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--panel2);border:1px solid var(--border);}
+.toggle-label{font-size:13px;flex:1;}
+.toggle-sub{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.toggle-btn{width:40px;height:22px;border-radius:11px;background:var(--border2);border:none;cursor:pointer;position:relative;transition:background .2s;}
+.toggle-btn.on{background:var(--green);}
+.toggle-btn::after{content:'';position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:white;transition:left .2s;}
+.toggle-btn.on::after{left:21px;}
+
+/* Tags */
+.tags-wrap{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px;}
+.tag-chip{display:flex;align-items:center;gap:4px;padding:3px 8px;background:var(--panel2);border:1px solid var(--border2);font-family:var(--mono);font-size:10px;color:var(--text2);}
+.tag-chip button{background:none;border:none;color:var(--text3);cursor:pointer;font-size:11px;padding:0 2px;}
+.tag-chip button:hover{color:var(--red);}
+.tag-input-row{display:flex;gap:8px;}
+.tag-input{flex:1;background:var(--panel2);border:1px solid var(--border2);color:var(--text);padding:6px 10px;font-family:var(--mono);font-size:11px;outline:none;}
+.tag-input:focus{border-color:var(--red);}
+
+/* Preview */
+.preview-doc{background:var(--panel2);border:2px solid var(--red);padding:24px;}
+.pv-badge{display:inline-block;background:var(--red-dim);border:1px solid var(--red);color:var(--red);font-family:var(--mono);font-size:9px;padding:3px 10px;letter-spacing:.12em;margin-bottom:12px;}
+.pv-title{font-size:20px;font-weight:700;margin-bottom:8px;line-height:1.3;}
+.pv-meta{display:flex;gap:16px;margin-bottom:16px;flex-wrap:wrap;}
+.pv-meta-item{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.pv-meta-item span{color:var(--text2);}
+.pv-divider{border:none;border-top:1px solid var(--red);opacity:.3;margin:16px 0;}
+.pv-summary{font-size:14px;color:var(--text2);margin-bottom:16px;line-height:1.7;padding:12px;background:var(--bg);border-left:3px solid var(--red);}
+.pv-content{font-size:13px;line-height:1.8;color:var(--text);}
+.pv-tags{display:flex;gap:6px;margin-top:16px;flex-wrap:wrap;}
+.pv-tag{font-family:var(--mono);font-size:9px;padding:2px 8px;background:var(--red-dim);border:1px solid var(--red);color:var(--red);}
+.pv-flag-req{background:var(--yellow-dim);border:1px solid var(--yellow);color:var(--yellow);font-family:var(--mono);font-size:9px;padding:4px 10px;display:inline-block;margin-bottom:8px;}
+
+/* Bottom bar */
+.bottom-bar{background:var(--panel);border-top:1px solid var(--border);padding:12px 24px;display:flex;gap:10px;flex-shrink:0;}
+
+/* Toast */
+.toast{position:fixed;bottom:70px;right:20px;background:var(--panel);border:1px solid var(--green);color:var(--green);font-family:var(--mono);font-size:11px;padding:10px 16px;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;z-index:9998;}
+.toast.show{opacity:1;transform:translateY(0);}
+.toast.err{border-color:var(--red);color:var(--red);}
+
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--border2);}
+</style>
+</head>
+<body>
+<div class="hdr">
+  <div class="hdr-dot"></div>
+  <div class="hdr-title">KAISHOKU // CLASSIFIED EDITOR</div>
+  <div class="hdr-sub">機密文書管理端末</div>
+  <div class="classified-badge">★ 最高機密</div>
+  <div class="hdr-sep"></div>
+  <button class="btn" onclick="downloadJSON()">↓ JSON</button>
+  <button class="btn btn-green" onclick="saveAll()">▶ 保存</button>
+</div>
+
+<div class="main">
+  <div class="list">
+    <div class="list-hdr">
+      <div class="list-title">機密文書一覧</div>
+      <button class="btn" onclick="addDoc()" style="padding:4px 10px;border-color:var(--red);color:var(--red);">+ 追加</button>
+    </div>
+    <div class="doc-list" id="docList"></div>
+  </div>
+
+  <div class="edit">
+    <div class="edit-tabs" id="editTabs" style="display:none">
+      <div class="tab active" onclick="switchTab(this,'tabEdit')">編集</div>
+      <div class="tab" onclick="switchTab(this,'tabPreview')">プレビュー</div>
+    </div>
+    <div class="tab-body" id="tabBodyContainer">
+      <div id="tabEdit" class="tab-pane active">
+        <div class="empty" id="emptyState">
+          <div class="empty-icon">[ 機密 ]</div>
+          <p>文書を選択または新規作成</p>
+        </div>
+        <div id="formContainer" style="display:none"></div>
+      </div>
+      <div id="tabPreview" class="tab-pane">
+        <div id="previewContainer"></div>
+      </div>
+    </div>
+    <div class="bottom-bar" id="bottomBar" style="display:none">
+      <button class="btn btn-green" onclick="saveAll()">▶ 変更を保存</button>
+      <button class="btn" onclick="duplicateDoc()">⿻ 複製</button>
+      <button class="btn btn-red" onclick="deleteDoc()" style="margin-left:auto">✕ 削除</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+const KNOWN_FLAGS = ['chapter1_open','chapter2_open','researcher_path_unlocked','paranoia_path_unlocked','deep_anomaly','world_collapse','true_ending_reached','paranoia_active'];
+const CATEGORIES = ['調査報告','内部通達','事件記録','機関員ファイル','現象データ','その他'];
+const CLASSIFICATIONS = ['最高機密','機密','部外秘'];
+
+let data = {"documents": [{"id": "DOC-001", "title": "第一次観測者接触事案 調査報告書", "category": "調査報告", "classification": "最高機密", "requiredLevel": 5, "requiredFlags": [], "author": "西堂 凛", "date": "2025-08-14", "summary": "大分湾岸において観測者と思われる存在との初接触が確認された。詳細は別添資料を参照。", "content": "2025年8月14日、大分湾岸監視ポスト第3番において、通常の海蝕現象とは異なる特異な光学現象が観測された。...", "tags": ["観測者", "大分湾", "接触事案"], "visible": true}, {"id": "DOC-002", "title": "封印計画 内部通達 #2091", "category": "内部通達", "classification": "最高機密", "requiredLevel": 5, "requiredFlags": ["chapter2_open"], "author": "機関長室", "date": "2025-11-01", "summary": "封印計画の現状と今後の方針について、エリート機関員へ通達する。", "content": "封印計画は現在フェーズ2に移行中である。詳細な情報は関係者のみに開示される。", "tags": ["封印計画", "機関長"], "visible": true}]};
+let selectedIdx = null;
+
+function renderList() {
+  const el = document.getElementById('docList');
+  const catColors = {'調査報告':'#4fc3f7','内部通達':'#ffd740','事件記録':'var(--red)','機関員ファイル':'#ce93d8','現象データ':'#00e676','その他':'#7a8aa0'};
+  el.innerHTML = data.documents.map((d,i) => {
+    const col = catColors[d.category] || '#888';
+    return `<div class="doc-item ${i===selectedIdx?'active':''}" onclick="select(${i})">
+      <div class="doc-id">${d.id} ${!d.visible?'<span style="color:var(--text3)">[非表示]</span>':''}</div>
+      <div class="doc-title-sm">${d.title||'(タイトル未設定)'}</div>
+      <div class="doc-meta-row">
+        <span class="doc-cat" style="background:${col}18;color:${col};border:1px solid ${col}44">${d.category||'—'}</span>
+        ${d.requiredFlags?.length?`<span style="font-family:var(--mono);font-size:9px;color:var(--yellow)">🔒 ${d.requiredFlags.join(',')}</span>`:''}
+      </div>
+    </div>`;
+  }).join('') || '<div style="padding:20px;text-align:center;color:var(--text3);font-family:var(--mono);font-size:11px">文書がありません</div>';
+}
+
+function select(idx) {
+  selectedIdx = idx;
+  renderList();
+  renderForm();
+  document.getElementById('editTabs').style.display='flex';
+  document.getElementById('bottomBar').style.display='flex';
+  document.getElementById('emptyState').style.display='none';
+  document.getElementById('formContainer').style.display='block';
+  renderPreview();
+}
+
+function getDoc() { return data.documents[selectedIdx]; }
+
+function renderForm() {
+  const d = getDoc();
+  if (!d) return;
+  const fc = document.getElementById('formContainer');
+  fc.innerHTML = `
+    <div class="form-grid">
+      <div class="field"><label class="field-label">文書ID</label><input class="field-input" id="f_id" value="${esc(d.id||'')}" oninput="up('id',this.value)"></div>
+      <div class="field"><label class="field-label">カテゴリ</label>
+        <select class="field-input" id="f_cat" onchange="up('category',this.value)">
+          ${CATEGORIES.map(c=>`<option ${d.category===c?'selected':''}>${c}</option>`).join('')}
+        </select></div>
+      <div class="field full"><label class="field-label">タイトル</label><input class="field-input" id="f_title" value="${esc(d.title||'')}" oninput="up('title',this.value)"></div>
+      <div class="field"><label class="field-label">分類レベル</label>
+        <select class="field-input" onchange="up('classification',this.value)">
+          ${CLASSIFICATIONS.map(c=>`<option ${d.classification===c?'selected':''}>${c}</option>`).join('')}
+        </select></div>
+      <div class="field"><label class="field-label">必要プレイヤーLV</label>
+        <select class="field-input" onchange="up('requiredLevel',parseInt(this.value))">
+          ${[0,1,2,3,4,5].map(l=>`<option value="${l}" ${d.requiredLevel===l?'selected':''}>LEVEL ${l}</option>`).join('')}
+        </select></div>
+      <div class="field"><label class="field-label">著者</label><input class="field-input" value="${esc(d.author||'')}" oninput="up('author',this.value)"></div>
+      <div class="field"><label class="field-label">日付</label><input class="field-input" type="date" value="${d.date||''}" oninput="up('date',this.value)"></div>
+      <div class="field full"><label class="field-label">概要 (summary)</label><textarea class="field-input" rows="2" oninput="up('summary',this.value)">${esc(d.summary||'')}</textarea></div>
+      <div class="field full"><label class="field-label">本文 (content)</label><textarea class="field-input" rows="6" oninput="up('content',this.value)">${esc(d.content||'')}</textarea></div>
+    </div>
+
+    <div style="margin-bottom:16px">
+      <div class="field-label" style="margin-bottom:8px">必要フラグ (このフラグがONのときのみ表示)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${KNOWN_FLAGS.map(f=>`<div class="toggle-row" style="padding:6px 10px;cursor:pointer;${(d.requiredFlags||[]).includes(f)?'border-color:var(--yellow)':''}" onclick="toggleFlag('${f}')">
+          <span style="font-family:var(--mono);font-size:10px;color:${(d.requiredFlags||[]).includes(f)?'var(--yellow)':'var(--text3)'}">${f}</span>
+        </div>`).join('')}
+      </div>
+    </div>
+
+    <div style="margin-bottom:16px">
+      <div class="field-label" style="margin-bottom:8px">タグ</div>
+      <div class="tags-wrap" id="tagsWrap">
+        ${(d.tags||[]).map((t,i)=>`<span class="tag-chip">${t}<button onclick="removeTag(${i})">×</button></span>`).join('')}
+      </div>
+      <div class="tag-input-row">
+        <input class="tag-input" id="tagInput" placeholder="タグを入力..." onkeydown="if(event.key==='Enter')addTag()">
+        <button class="btn" onclick="addTag()" style="border-color:var(--text3)">+ 追加</button>
+      </div>
+    </div>
+
+    <div class="toggle-row">
+      <div>
+        <div class="toggle-label">文書を表示する</div>
+        <div class="toggle-sub">OFFにするとゲーム内で非表示になります</div>
+      </div>
+      <button class="toggle-btn ${d.visible?'on':''}" id="visToggle" onclick="toggleVis()"></button>
+    </div>`;
+}
+
+function up(key, val) {
+  const d = getDoc(); if(d) { d[key]=val; renderPreview(); }
+}
+
+function toggleFlag(f) {
+  const d = getDoc(); if(!d) return;
+  d.requiredFlags = d.requiredFlags || [];
+  const idx = d.requiredFlags.indexOf(f);
+  if (idx>=0) d.requiredFlags.splice(idx,1); else d.requiredFlags.push(f);
+  renderForm();
+}
+
+function addTag() {
+  const inp = document.getElementById('tagInput');
+  const val = inp.value.trim();
+  if (!val) return;
+  const d = getDoc(); if(!d) return;
+  d.tags = d.tags || [];
+  d.tags.push(val);
+  inp.value = '';
+  renderForm();
+}
+function removeTag(i) {
+  const d = getDoc(); if(!d) return;
+  d.tags.splice(i,1);
+  renderForm();
+}
+function toggleVis() {
+  const d = getDoc(); if(!d) return;
+  d.visible = !d.visible;
+  document.getElementById('visToggle')?.classList.toggle('on', d.visible);
+  renderList();
+}
+
+function renderPreview() {
+  const d = getDoc(); if(!d) return;
+  const c = document.getElementById('previewContainer');
+  c.innerHTML = `
+    <div class="preview-doc">
+      <div class="pv-badge">★ ${d.classification||'機密'}</div>
+      ${d.requiredFlags?.length?`<div class="pv-flag-req">🔒 解放条件: ${d.requiredFlags.join(' AND ')}</div><br>`:''}
+      <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:8px">${d.id||'—'} // ${d.category||'—'}</div>
+      <div class="pv-title">${d.title||'(タイトル未設定)'}</div>
+      <div class="pv-meta">
+        <div class="pv-meta-item">著者: <span>${d.author||'—'}</span></div>
+        <div class="pv-meta-item">日付: <span>${d.date||'—'}</span></div>
+        <div class="pv-meta-item">LEVEL: <span>${d.requiredLevel??'—'} 以上</span></div>
+        <div class="pv-meta-item">表示: <span style="color:${d.visible?'var(--green)':'var(--red)'}">${d.visible?'表示中':'非表示'}</span></div>
+      </div>
+      <hr class="pv-divider">
+      <div class="pv-summary">${d.summary||'(概要なし)'}</div>
+      <div class="pv-content">${(d.content||'(本文なし)').replace(/\n/g,'<br>')}</div>
+      ${d.tags?.length?`<div class="pv-tags">${d.tags.map(t=>`<span class="pv-tag">#${t}</span>`).join('')}</div>`:''}
+    </div>`;
+}
+
+function addDoc() {
+  const id = 'DOC-' + String(data.documents.length+1).padStart(3,'0');
+  data.documents.push({id,title:'新規機密文書',category:'調査報告',classification:'最高機密',requiredLevel:5,requiredFlags:[],author:'',date:new Date().toISOString().slice(0,10),summary:'',content:'',tags:[],visible:false});
+  select(data.documents.length-1);
+  renderList();
+  toast('新規文書を作成しました');
+}
+function duplicateDoc() {
+  const d = getDoc(); if(!d) return;
+  const copy = JSON.parse(JSON.stringify(d));
+  copy.id = copy.id + '-COPY';
+  data.documents.push(copy);
+  renderList();
+  toast('複製しました');
+}
+function deleteDoc() {
+  if(selectedIdx===null) return;
+  if(!confirm('この文書を削除しますか？')) return;
+  data.documents.splice(selectedIdx,1);
+  selectedIdx=null;
+  renderList();
+  document.getElementById('editTabs').style.display='none';
+  document.getElementById('bottomBar').style.display='none';
+  document.getElementById('emptyState').style.display='flex';
+  document.getElementById('formContainer').style.display='none';
+  toast('削除しました');
+}
+
+function saveAll() {
+  localStorage.setItem('kaishoku_classified_docs', JSON.stringify(data));
+  toast('localStorageに保存しました ✓');
+}
+function downloadJSON() {
+  const blob = new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='classified-docs.json'; a.click();
+  toast('classified-docs.json をダウンロードしました ✓');
+}
+function switchTab(btn, id) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById(id).classList.add('active');
+  if(id==='tabPreview') renderPreview();
+}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function toast(msg,type=''){
+  const t=document.getElementById('toastEl');
+  t.textContent=msg;t.className='toast show '+(type);
+  clearTimeout(t._t);t._t=setTimeout(()=>t.className='toast',2800);
+}
+
+renderList();
+</script>
+</body>
+</html>

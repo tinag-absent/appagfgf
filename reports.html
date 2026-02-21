@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title>インシデントレポート — 海蝕機関</title>
+  <link rel="icon" type="image/png" href="./images/favicon.png">
+  <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/sidebar.css">
+  <link rel="stylesheet" href="./css/mobile.css">
+  <link rel="stylesheet" href="./css/loading.css">
+  <style>
+    .rp-layout {
+      display: grid;
+      grid-template-columns: 1fr 420px;
+      gap: 2rem;
+      align-items: start;
+    }
+    @media(max-width:900px){ .rp-layout{ grid-template-columns:1fr; } }
+
+    /* Form */
+    .rp-form-panel {
+      background: rgba(0,0,0,.3);
+      border: 1px solid rgba(255,255,255,.08);
+      padding: 2rem;
+    }
+    .rp-form-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: white;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+      padding-bottom: .75rem;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+    }
+    .rp-field { margin-bottom: 1.25rem; }
+    .rp-label {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .7rem;
+      color: var(--muted-foreground);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: .4rem;
+    }
+    .rp-label.required::after { content: ' *'; color: #ef4444; }
+    .rp-input, .rp-select, .rp-textarea {
+      width: 100%;
+      background: rgba(0,0,0,.4);
+      border: 1px solid rgba(255,255,255,.12);
+      color: var(--foreground);
+      padding: .65rem 1rem;
+      font-family: 'Inter', sans-serif;
+      font-size: .875rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .rp-input:focus, .rp-select:focus, .rp-textarea:focus {
+      border-color: var(--primary);
+    }
+    .rp-textarea { resize: vertical; min-height: 100px; }
+    .rp-select { appearance: none; cursor: pointer; }
+
+    /* Severity */
+    .severity-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: .5rem;
+      margin-bottom: 1.25rem;
+    }
+    .severity-btn {
+      padding: .6rem;
+      background: rgba(0,0,0,.3);
+      border: 1px solid rgba(255,255,255,.1);
+      color: var(--muted-foreground);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .72rem;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all .2s;
+      text-align: center;
+    }
+    .severity-btn.warning { --sc: #f59e0b; }
+    .severity-btn.critical { --sc: #ef4444; }
+    .severity-btn.safe    { --sc: #10b981; }
+    .severity-btn.active, .severity-btn:hover {
+      border-color: var(--sc);
+      color: var(--sc);
+      background: color-mix(in srgb, var(--sc) 10%, transparent);
+    }
+
+    /* GSI slider */
+    .gsi-slider-wrap { margin-bottom: 1.25rem; }
+    .gsi-header { display: flex; justify-content: space-between; margin-bottom: .4rem; }
+    .gsi-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .85rem;
+      color: var(--primary);
+    }
+    input[type=range].gsi-range {
+      width: 100%;
+      appearance: none;
+      height: 4px;
+      background: rgba(255,255,255,.12);
+      outline: none;
+    }
+    input[type=range].gsi-range::-webkit-slider-thumb {
+      appearance: none;
+      width: 16px; height: 16px;
+      border-radius: 50%;
+      background: var(--primary);
+      cursor: pointer;
+      border: 2px solid var(--background);
+    }
+
+    /* Submit btn */
+    .rp-submit {
+      width: 100%;
+      padding: .9rem;
+      background: rgba(0,255,255,.1);
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .85rem;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .rp-submit:hover { background: rgba(0,255,255,.18); }
+
+    /* Report list */
+    .rp-list-panel {}
+    .rp-list-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+    }
+    .rp-list-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1rem;
+      font-weight: 700;
+      color: white;
+      text-transform: uppercase;
+    }
+    .rp-count {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .75rem;
+      color: var(--muted-foreground);
+    }
+    .rp-filter-row {
+      display: flex;
+      gap: .4rem;
+      margin-bottom: 1rem;
+    }
+    .rp-fchip {
+      padding: .25rem .7rem;
+      background: rgba(0,0,0,.3);
+      border: 1px solid rgba(255,255,255,.1);
+      color: var(--muted-foreground);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .68rem;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .rp-fchip.active, .rp-fchip:hover {
+      border-color: var(--primary); color: var(--primary);
+    }
+    .report-item {
+      background: rgba(0,0,0,.3);
+      border: 1px solid rgba(255,255,255,.07);
+      border-left: 3px solid var(--item-color, var(--primary));
+      padding: 1rem 1.25rem;
+      margin-bottom: .75rem;
+      transition: border-color .2s;
+    }
+    .report-item:hover { border-color: rgba(255,255,255,.16); }
+    .report-item-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: .75rem;
+      margin-bottom: .5rem;
+    }
+    .report-item-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: .95rem;
+      font-weight: 600;
+      color: white;
+      text-transform: uppercase;
+    }
+    .report-item-meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .65rem;
+      color: var(--muted-foreground);
+      margin-top: .2rem;
+    }
+    .report-item-desc {
+      font-size: .82rem;
+      color: var(--muted-foreground);
+      line-height: 1.6;
+      margin-top: .35rem;
+    }
+    .rp-empty {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--muted-foreground);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .8rem;
+    }
+    .badge {
+      border-radius: 0;
+      font-family: 'JetBrains Mono', monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar"></aside>
+    <button class="mobile-menu-toggle">
+      <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+    <div class="mobile-menu-overlay"></div>
+
+    <main class="main-content scanline">
+      <div class="container animate-fadeIn">
+
+        <div style="border-left:4px solid var(--primary);padding-left:1rem;margin-bottom:2.5rem;">
+          <h1 style="font-size:2.5rem;font-family:'Space Grotesk',sans-serif;font-weight:700;color:white;text-transform:uppercase;">
+            インシデントレポート
+          </h1>
+          <p class="font-mono" style="font-size:.875rem;margin-top:.5rem;color:var(--muted-foreground);">
+            INCIDENT REPORTS — 異常現象の報告・記録
+          </p>
+        </div>
+
+        <div class="rp-layout">
+
+          <!-- 報告フォーム -->
+          <div class="rp-form-panel">
+            <div class="rp-form-title">
+              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+              新規報告書の作成
+            </div>
+
+            <form id="report-form">
+              <div class="rp-field">
+                <label class="rp-label required">報告タイトル</label>
+                <input class="rp-input" id="report-title" placeholder="例：大分港 異常光源の出現" required>
+              </div>
+
+              <div class="rp-field">
+                <label class="rp-label">発生場所</label>
+                <input class="rp-input" id="report-location" placeholder="例：大分市大分港 地下2階">
+              </div>
+
+              <div class="rp-field">
+                <label class="rp-label required">事案の詳細</label>
+                <textarea class="rp-textarea" id="report-desc" placeholder="目撃・観測した内容を詳細に記述してください。実体の行動・規模・影響範囲など。" required></textarea>
+              </div>
+
+              <div class="rp-field">
+                <label class="rp-label">実体の特徴（判明している場合）</label>
+                <textarea class="rp-textarea" id="report-entity" placeholder="形状・大きさ・行動パターン・使用モジュールへの反応など" style="min-height:70px;"></textarea>
+              </div>
+
+              <div class="rp-field">
+                <label class="rp-label">GSI推定値</label>
+                <div class="gsi-slider-wrap">
+                  <div class="gsi-header">
+                    <span class="rp-label" style="margin:0">GSI</span>
+                    <span class="gsi-val" id="gsiVal">5.0%</span>
+                  </div>
+                  <input type="range" class="gsi-range" id="report-gsi" min="0" max="30" step=".5" value="5"
+                    oninput="document.getElementById('gsiVal').textContent = parseFloat(this.value).toFixed(1) + '%'">
+                </div>
+              </div>
+
+              <div class="rp-field">
+                <label class="rp-label">深刻度</label>
+                <div class="severity-row">
+                  <button type="button" class="severity-btn safe" data-severity="safe">観察</button>
+                  <button type="button" class="severity-btn warning active" data-severity="warning">警戒</button>
+                  <button type="button" class="severity-btn critical" data-severity="critical">重大</button>
+                </div>
+              </div>
+
+              <div class="rp-field">
+                <label class="rp-label">報告者名</label>
+                <input class="rp-input" id="report-author" placeholder="機関員名">
+              </div>
+
+              <button type="submit" class="rp-submit">▶ 報告書を提出する</button>
+            </form>
+          </div>
+
+          <!-- 報告一覧 -->
+          <div class="rp-list-panel">
+            <div class="rp-list-header">
+              <div class="rp-list-title">提出済み報告書</div>
+              <div class="rp-count" id="rp-total">0件</div>
+            </div>
+            <div class="rp-filter-row">
+              <button class="rp-fchip active" data-sev="all">全て</button>
+              <button class="rp-fchip" data-sev="critical">重大</button>
+              <button class="rp-fchip" data-sev="warning">警戒</button>
+              <button class="rp-fchip" data-sev="safe">観察</button>
+            </div>
+            <div id="reports-list-container"></div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="./js/error-handler.js"></script>
+  <script src="./js/data-bundle.js"></script>
+  <script src="./js/loading.js"></script>
+  <script src="./js/sidebar.js"></script>
+  <script src="./js/bookmark.js"></script>
+  <script src="./js/main.js"></script>
+  <script src="./js/modal.js"></script>
+  <script src="./js/progress.js"></script>
+  <script src="./js/story-engine.js"></script>
+  <script src="./js/notifications.js"></script>
+  </script>
+  
+  <script src="./js/reports.js"></script>
+  <script>
+    // severity toggle
+    document.querySelectorAll('.severity-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.severity-btn').forEach(function(b){ b.classList.remove('active'); });
+        btn.classList.add('active');
+      });
+    });
+
+    // filter chips
+    var sevFilter = 'all';
+    document.querySelectorAll('.rp-fchip').forEach(function(chip) {
+      chip.addEventListener('click', function() {
+        document.querySelectorAll('.rp-fchip').forEach(function(c){ c.classList.remove('active'); });
+        chip.classList.add('active');
+        sevFilter = chip.dataset.sev;
+        filterReportList();
+      });
+    });
+
+    function filterReportList() {
+      var items = document.querySelectorAll('.report-item');
+      var shown = 0;
+      items.forEach(function(item) {
+        if (sevFilter === 'all') { item.style.display = ''; shown++; return; }
+        var match = item.style.cssText.includes(sevFilter === 'critical' ? 'ef4444' : sevFilter === 'warning' ? 'f59e0b' : '10b981');
+        item.style.display = match ? '' : 'none';
+        if (match) shown++;
+      });
+      document.getElementById('rp-total').textContent = shown + '件';
+    }
+
+    // update count after render
+    setTimeout(function() {
+      var count = document.querySelectorAll('.report-item').length;
+      document.getElementById('rp-total').textContent = count + '件';
+    }, 200);
+  </script>
+</body>
+</html>

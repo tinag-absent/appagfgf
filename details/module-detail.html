@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title>モジュール詳細 - 海蝕機関</title>
+  <link rel="icon" type="image/png" href="../images/favicon.png">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/sidebar.css">
+  <link rel="stylesheet" href="../css/mobile.css">
+  <link rel="stylesheet" href="../css/loading.css">
+  <style>
+    .back-button {
+      display: inline-flex; align-items: center; gap: 0.5rem;
+      padding: 0.75rem 1.5rem; background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1); color: var(--foreground);
+      text-decoration: none; font-family: 'JetBrains Mono', monospace;
+      transition: all 0.3s; margin-bottom: 2rem;
+    }
+    .back-button:hover { border-color: var(--primary); background: rgba(0,255,255,0.08); }
+
+    /* Header */
+    .module-header {
+      padding: 2rem; margin-bottom: 2rem; position: relative; overflow: hidden;
+    }
+    .module-header::before {
+      content: ''; position: absolute; inset: 0; border: 2px solid;
+    }
+    .module-header.cls-safe::before      { border-color: rgb(16,185,129); background: linear-gradient(135deg, rgba(16,185,129,0.08), rgba(0,0,0,0.4)); }
+    .module-header.cls-caution::before   { border-color: rgb(245,158,11); background: linear-gradient(135deg, rgba(245,158,11,0.08), rgba(0,0,0,0.4)); }
+    .module-header.cls-danger::before    { border-color: rgb(239,68,68); background: linear-gradient(135deg, rgba(239,68,68,0.1), rgba(0,0,0,0.4)); }
+    .module-header.cls-classified::before{ border-color: rgb(139,92,246); background: linear-gradient(135deg, rgba(139,92,246,0.1), rgba(0,0,0,0.4)); }
+
+    .module-header-inner { position: relative; z-index: 1; }
+
+    /* Icon */
+    .module-icon-wrap {
+      width: 72px; height: 72px; margin-bottom: 1.25rem;
+      display: flex; align-items: center; justify-content: center;
+      clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+    }
+    .module-icon-wrap.cls-safe      { background: linear-gradient(135deg, rgb(16,185,129), rgb(5,150,105)); }
+    .module-icon-wrap.cls-caution   { background: linear-gradient(135deg, rgb(245,158,11), rgb(217,119,6)); }
+    .module-icon-wrap.cls-danger    { background: linear-gradient(135deg, rgb(239,68,68), rgb(185,28,28)); }
+    .module-icon-wrap.cls-classified{ background: linear-gradient(135deg, rgb(139,92,246), rgb(109,40,217)); }
+
+    .cls-badge {
+      display: inline-block; padding: 0.25rem 0.85rem;
+      font-size: 0.7rem; font-family: 'JetBrains Mono', monospace;
+      text-transform: uppercase; border: 1px solid; letter-spacing: 0.08em;
+    }
+    .cls-safe      { border-color: rgb(16,185,129); color: rgb(16,185,129); background: rgba(16,185,129,0.1); }
+    .cls-caution   { border-color: rgb(245,158,11); color: rgb(245,158,11); background: rgba(245,158,11,0.1); }
+    .cls-danger    { border-color: rgb(239,68,68); color: rgb(239,68,68); background: rgba(239,68,68,0.1); }
+    .cls-classified{ border-color: rgb(139,92,246); color: rgb(139,92,246); background: rgba(139,92,246,0.1); }
+
+    .module-code-line {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+      color: var(--muted-foreground); margin-bottom: 0.5rem;
+      display: flex; align-items: center; gap: 1rem;
+    }
+    .module-name {
+      font-size: 2.5rem; font-family: 'Space Grotesk', sans-serif;
+      font-weight: 700; color: white; margin: 0.4rem 0 0.25rem;
+    }
+    .module-developer { color: var(--muted-foreground); font-size: 0.875rem; }
+
+    /* Specs grid */
+    .specs-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+    .spec-item { background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.08); padding: 0.875rem 1rem; }
+    .spec-label { font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; color: var(--muted-foreground); text-transform: uppercase; margin-bottom: 0.3rem; }
+    .spec-value { font-family: 'JetBrains Mono', monospace; font-size: 0.95rem; font-weight: 700; color: var(--primary); }
+
+    /* Energy badge */
+    .energy-high   { color: var(--destructive); }
+    .energy-mid    { color: rgb(245,158,11); }
+    .energy-low    { color: rgb(16,185,129); }
+
+    /* Tabs */
+    .tab-nav {
+      display: flex; margin-bottom: 0;
+      border-bottom: 2px solid rgba(255,255,255,0.1);
+    }
+    .tab-btn {
+      padding: 0.875rem 1.75rem; background: none; border: none;
+      border-bottom: 3px solid transparent; color: var(--muted-foreground);
+      cursor: pointer; font-family: 'JetBrains Mono', monospace;
+      font-weight: 600; text-transform: uppercase; font-size: 0.8rem;
+      transition: all 0.25s; margin-bottom: -2px;
+    }
+    .tab-btn:hover, .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .tab-content { display: none; padding-top: 2rem; }
+    .tab-content.active { display: block; animation: fadeIn 0.25s; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    /* Content */
+    .detail-block {
+      background: rgba(26,39,56,0.4); border: 1px solid rgba(255,255,255,0.08);
+      padding: 1.75rem; margin-bottom: 1.5rem;
+    }
+    .block-title {
+      font-family: 'Space Grotesk', sans-serif; font-size: 1rem;
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+      color: var(--primary); margin-bottom: 1.25rem;
+      padding-bottom: 0.6rem; border-bottom: 1px solid rgba(0,255,255,0.15);
+    }
+    .detail-text { color: var(--foreground); line-height: 1.9; font-size: 0.9375rem; }
+
+    .warning-block {
+      background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.3);
+      border-left: 4px solid var(--destructive); padding: 1.5rem;
+    }
+    .warning-label {
+      font-family: 'JetBrains Mono', monospace; font-size: 0.7rem;
+      color: var(--destructive); text-transform: uppercase;
+      letter-spacing: 0.1em; margin-bottom: 0.75rem; font-weight: 700;
+    }
+
+    /* Related missions */
+    .mission-ref-card {
+      background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08);
+      padding: 1rem 1.25rem; margin-bottom: 0.75rem;
+      cursor: pointer; transition: all 0.2s; display: flex;
+      align-items: center; gap: 1rem; text-decoration: none;
+    }
+    .mission-ref-card:hover { border-color: var(--primary); background: rgba(0,255,255,0.04); }
+    .mission-ref-id { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--muted-foreground); white-space: nowrap; }
+    .mission-ref-title { color: white; font-size: 0.9rem; font-weight: 600; flex: 1; }
+    .mission-ref-sub { font-size: 0.75rem; color: var(--muted-foreground); margin-top: 0.2rem; }
+    .mission-ref-badges { display: flex; gap: 0.4rem; flex-shrink: 0; }
+    .mini-badge {
+      padding: 0.15rem 0.5rem; font-size: 0.6rem;
+      font-family: 'JetBrains Mono', monospace; text-transform: uppercase; border: 1px solid;
+    }
+    .mb-active    { border-color: var(--destructive); color: var(--destructive); }
+    .mb-completed { border-color: rgb(16,185,129); color: rgb(16,185,129); }
+    .mb-monitoring{ border-color: rgb(245,158,11); color: rgb(245,158,11); }
+    .mb-failed    { border-color: rgb(107,114,128); color: rgb(107,114,128); }
+    .mb-critical  { border-color: var(--destructive); color: var(--destructive); }
+    .mb-warning   { border-color: rgb(245,158,11); color: rgb(245,158,11); }
+    .mb-safe      { border-color: var(--primary); color: var(--primary); }
+    .no-related {
+      text-align: center; padding: 2.5rem;
+      font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+      color: var(--muted-foreground); border: 1px dashed rgba(255,255,255,0.1);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar"></aside>
+    <button class="mobile-menu-toggle">
+      <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+    <div class="mobile-menu-overlay"></div>
+
+    <main class="main-content scanline">
+      <div class="container">
+        <div class="space-y-12 animate-fadeIn">
+          <a href="../modules.html" class="back-button">
+            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+            </svg>
+            モジュールカタログに戻る
+          </a>
+          <div id="moduleDetail"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="../js/error-handler.js"></script>
+  <script src="../js/data-bundle.js"></script>
+
+  <script src="../js/loading.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/modal.js"></script>
+  <script src="../js/progress.js"></script>
+  <script src="../js/level-messages.js"></script>
+  <script src="../js/daily-login.js"></script>
+  <script src="../js/mission-data.js"></script>
+  <script src="../js/catalog-data.js"></script>
+  <script src="../js/view-history.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script>
+  (async function() {
+    if (!ProgressSystem.checkPageAccess('details/module-detail.html')) {
+      ModalSystem.warning('このページにアクセスするには LEVEL 2 が必要です。', 'ACCESS DENIED')
+        .then(() => { window.location.href = '../dashboard.html'; });
+      return;
+    }
+    await Promise.all([
+      window.CatalogData.whenReady(),
+      window.MissionData.whenReady()
+    ]);
+
+    const id = new URLSearchParams(window.location.search).get('id');
+    const mod = window.CatalogData.modules.find(m => m.id === id || m.code === id);
+
+    if (!mod) {
+      ModalSystem.error('指定されたモジュールが見つかりません。', 'NOT FOUND')
+        .then(() => { window.location.href = '../modules.html'; });
+      return;
+    }
+
+    document.title = `${mod.name} - 海蝕機関`;
+    ViewHistory.record('module', mod.id, mod.name);
+
+
+    const CLASS_LABEL = { safe:'SAFE', caution:'CAUTION', danger:'DANGER', classified:'CLASSIFIED' };
+    const STATUS_LABEL = { active:'対応中', monitoring:'監視中', completed:'収束済み', failed:'失敗' };
+    const PRIORITY_LABEL = { critical:'重大', warning:'警戒', safe:'観察' };
+    const ENERGY_CLASS = { '高':'energy-high', '中':'energy-mid', '低':'energy-low' };
+
+    // Find related missions (by code match in modules array)
+    const relatedMissions = window.MissionData.missions.filter(m =>
+      m.modules && m.modules.some(mCode => mCode.startsWith(mod.code))
+    );
+
+    document.getElementById('moduleDetail').innerHTML = `
+      <div class="module-header cls-${mod.classification}">
+        <div class="module-header-inner">
+          <div class="module-icon-wrap cls-${mod.classification}">
+            <svg width="36" height="36" fill="none" stroke="white" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+            </svg>
+          </div>
+          <div class="module-code-line">
+            <span>${mod.id} / ${mod.code}</span>
+            <span class="cls-badge cls-${mod.classification}">${CLASS_LABEL[mod.classification]}</span>
+          </div>
+          <div class="module-name">${mod.name}</div>
+          <div class="module-developer">開発: ${mod.developer}</div>
+          <div class="specs-grid">
+            <div class="spec-item">
+              <div class="spec-label">効果範囲</div>
+              <div class="spec-value">${mod.range}</div>
+            </div>
+            <div class="spec-item">
+              <div class="spec-label">持続時間</div>
+              <div class="spec-value">${mod.duration}</div>
+            </div>
+            <div class="spec-item">
+              <div class="spec-label">エネルギー消費</div>
+              <div class="spec-value ${ENERGY_CLASS[mod.energy]||''}">${mod.energy}</div>
+            </div>
+            <div class="spec-item">
+              <div class="spec-label">使用実績</div>
+              <div class="spec-value">${relatedMissions.length} 件</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="tab-nav">
+        <button class="tab-btn active" data-tab="overview">概要</button>
+        <button class="tab-btn" data-tab="warning">警告・制限</button>
+        <button class="tab-btn" data-tab="missions">使用実績 <span style="font-size:0.65rem;opacity:0.7;">(${relatedMissions.length})</span></button>
+      </div>
+
+      <div class="tab-content active" id="overview">
+        <div class="detail-block">
+          <div class="block-title">基本説明</div>
+          <div class="detail-text">${mod.description}</div>
+        </div>
+        <div class="detail-block">
+          <div class="block-title">技術詳細</div>
+          <div class="detail-text">${mod.details}</div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="warning">
+        <div class="warning-block">
+          <div class="warning-label">⚠ 使用上の警告 / USAGE WARNING</div>
+          <div class="detail-text">${mod.warning}</div>
+        </div>
+      </div>
+
+      <div class="tab-content" id="missions">
+        ${relatedMissions.length === 0
+          ? `
+
+    // ブックマークボタンを挿入
+    (function() {
+      var btn = BookmarkSystem.render('module', mod.id, mod.name);
+      var titleEl = document.querySelector('.module-name');
+      if (titleEl && titleEl.parentElement) {
+        var wrap = document.createElement('div');
+        wrap.style.cssText = 'display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;flex-wrap:wrap;margin-bottom:0.5rem;';
+        titleEl.parentElement.insertBefore(wrap, titleEl);
+        wrap.appendChild(titleEl);
+        wrap.appendChild(btn);
+      }
+    })();<div class="no-related">記録された使用実績はありません</div>`
+          : relatedMissions.map(m => `
+            <a class="mission-ref-card" href="./mission-detail.html?id=${m.id}">
+              <div>
+                <div class="mission-ref-id">${m.id}</div>
+                <div class="mission-ref-title">${m.title}</div>
+                <div class="mission-ref-sub">📍 ${m.location}</div>
+              </div>
+              <div class="mission-ref-badges">
+                <span class="mini-badge mb-${m.status}">${STATUS_LABEL[m.status]||m.status}</span>
+                <span class="mini-badge mb-${m.priority}">${PRIORITY_LABEL[m.priority]||m.priority}</span>
+              </div>
+            </a>`).join('')
+        }
+      </div>
+    `;
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById(this.dataset.tab).classList.add('active');
+      });
+    });
+
+    ProgressSystem.trackActivity('division_view');
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title>地域詳細 - 海蝕機関</title>
+  <link rel="icon" type="image/png" href="../images/favicon.png">
+  <link rel="stylesheet" href="../css/style.css">
+  <link rel="stylesheet" href="../css/sidebar.css">
+  <link rel="stylesheet" href="../css/mobile.css">
+  <link rel="stylesheet" href="../css/loading.css">
+  <style>
+    .loc-page { max-width: 1400px; padding: 0 1.5rem 3rem; }
+    .back-link { display:inline-flex;align-items:center;gap:0.4rem;font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:rgba(0,229,229,0.45);text-decoration:none;letter-spacing:0.12em;margin:1.5rem 0 1rem;transition:color 0.2s; }
+    .back-link:hover { color:var(--primary); }
+    .loc-header { border-bottom:1px solid rgba(0,229,229,0.12);padding-bottom:1.5rem;margin-bottom:1.5rem; }
+    .loc-badge { font-family:'JetBrains Mono',monospace;font-size:0.6rem;letter-spacing:0.2em;color:var(--primary);opacity:0.55;margin-bottom:0.4rem; }
+    .loc-title { font-size:2.8rem;font-family:'Space Grotesk',sans-serif;font-weight:800;color:#fff;line-height:1;margin-bottom:0.3rem; }
+    .loc-sub { font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--muted-foreground);letter-spacing:0.08em; }
+
+    .alert-banner { display:flex;align-items:center;gap:0.8rem;padding:0.75rem 1rem;margin-bottom:1.25rem;font-family:'JetBrains Mono',monospace;font-size:0.75rem;border:1px solid;letter-spacing:0.05em; }
+    .alert-banner .pulse-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0;animation:pulse-glow 1.5s ease-in-out infinite; }
+    @keyframes pulse-glow { 0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.4;transform:scale(0.7)} }
+    .alert-banner.critical { border-color:rgba(255,50,50,0.35);background:rgba(255,50,50,0.06);color:hsl(0,70%,65%); }
+    .alert-banner.critical .pulse-dot { background:hsl(0,70%,55%);box-shadow:0 0 8px hsl(0,70%,40%); }
+    .alert-banner.warning { border-color:rgba(255,180,0,0.35);background:rgba(255,180,0,0.06);color:hsl(38,90%,65%); }
+    .alert-banner.warning .pulse-dot { background:hsl(38,90%,55%);box-shadow:0 0 8px hsl(38,90%,35%); }
+    .alert-banner.safe { border-color:rgba(0,229,229,0.25);background:rgba(0,229,229,0.04);color:var(--primary); }
+    .alert-banner.safe .pulse-dot { background:var(--primary);box-shadow:0 0 8px var(--primary);animation:none; }
+    .alert-banner.none { border-color:rgba(255,255,255,0.08);background:rgba(255,255,255,0.02);color:var(--muted-foreground); }
+    .alert-banner.none .pulse-dot { background:rgba(255,255,255,0.2);animation:none; }
+
+    .stats-strip { display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);margin-bottom:1.5rem; }
+    @media(max-width:600px){.stats-strip{grid-template-columns:1fr 1fr}}
+    .stat-cell { background:hsl(220,28%,8%);padding:1.1rem 1.25rem;position:relative;overflow:hidden; }
+    .stat-cell::after { content:'';position:absolute;bottom:0;left:0;right:0;height:2px;opacity:0.4; }
+    .stat-cell.s-total::after { background:white; }
+    .stat-cell.s-crit::after { background:hsl(0,70%,55%); }
+    .stat-cell.s-warn::after { background:hsl(38,90%,55%); }
+    .stat-cell.s-safe::after { background:var(--primary); }
+    .stat-val { font-family:'Space Grotesk',sans-serif;font-size:2.2rem;font-weight:800;line-height:1;margin-bottom:0.25rem; }
+    .s-total .stat-val { color:white; }
+    .s-crit .stat-val { color:hsl(0,70%,60%); }
+    .s-warn .stat-val { color:hsl(38,90%,60%); }
+    .s-safe .stat-val { color:var(--primary); }
+    .stat-label { font-family:'JetBrains Mono',monospace;font-size:0.58rem;color:var(--muted-foreground);letter-spacing:0.12em;text-transform:uppercase; }
+
+    .main-grid { display:grid;grid-template-columns:1fr 340px;gap:1.5rem;align-items:start; }
+    @media(max-width:960px){.main-grid{grid-template-columns:1fr}}
+
+    .map-panel { background:hsl(220,30%,7%);border:1px solid rgba(0,229,229,0.1);overflow:hidden;position:relative; }
+    .map-panel-header { display:flex;align-items:center;justify-content:space-between;padding:0.75rem 1rem;border-bottom:1px solid rgba(255,255,255,0.06);background:rgba(0,0,0,0.2); }
+    .map-panel-title { font-family:'JetBrains Mono',monospace;font-size:0.65rem;color:var(--primary);letter-spacing:0.15em;text-transform:uppercase; }
+    .map-panel-coord { font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:rgba(255,255,255,0.25);letter-spacing:0.08em; }
+    #mapSvgWrap { width:100%;aspect-ratio:4/3;position:relative;overflow:hidden; }
+    #mapSvg { width:100%;height:100%;display:block; }
+    .map-legend { display:flex;gap:1.25rem;padding:0.65rem 1rem;border-top:1px solid rgba(255,255,255,0.05);background:rgba(0,0,0,0.15); }
+    .legend-item { display:flex;align-items:center;gap:0.35rem;font-family:'JetBrains Mono',monospace;font-size:0.58rem;color:rgba(255,255,255,0.35);letter-spacing:0.08em; }
+    .legend-dot { width:8px;height:8px;border-radius:50%;flex-shrink:0; }
+
+    .side-col { display:flex;flex-direction:column;gap:1rem; }
+    .panel { background:hsl(220,28%,8%);border:1px solid rgba(255,255,255,0.06); }
+    .panel-head { padding:0.7rem 1rem;border-bottom:1px solid rgba(255,255,255,0.05);font-family:'Space Grotesk',sans-serif;font-size:0.65rem;font-weight:700;text-transform:uppercase;letter-spacing:0.15em;color:var(--primary); }
+
+    .info-row { display:flex;justify-content:space-between;align-items:center;padding:0.5rem 1rem;border-bottom:1px solid rgba(255,255,255,0.04); }
+    .info-row:last-child { border-bottom:none; }
+    .info-k { font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:rgba(255,255,255,0.3);letter-spacing:0.08em; }
+    .info-v { font-family:'JetBrains Mono',monospace;font-size:0.68rem;color:rgba(255,255,255,0.8);text-align:right;max-width:60%; }
+
+    .gsi-wrap { padding:1rem; }
+    .gsi-row { display:flex;justify-content:space-between;margin-bottom:0.4rem; }
+    .gsi-label { font-family:'JetBrains Mono',monospace;font-size:0.62rem;color:rgba(255,255,255,0.35);letter-spacing:0.08em; }
+    .gsi-val { font-family:'Space Grotesk',sans-serif;font-size:1.6rem;font-weight:800; }
+    .gsi-bar-bg { height:5px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;margin-bottom:0.25rem; }
+    .gsi-bar-fill { height:100%;border-radius:2px;transition:width 1s cubic-bezier(0.23,1,0.32,1); }
+    .gsi-ticks { display:flex;justify-content:space-between; }
+    .gsi-tick { font-family:'JetBrains Mono',monospace;font-size:0.55rem;color:rgba(255,255,255,0.18); }
+
+    .div-bar-wrap { padding:0.75rem 1rem;display:flex;flex-direction:column;gap:0.6rem; }
+    .div-row { display:flex;flex-direction:column;gap:0.2rem; }
+    .div-name { font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:rgba(255,255,255,0.5);letter-spacing:0.06em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis; }
+    .div-track { height:3px;background:rgba(255,255,255,0.05);border-radius:2px;overflow:hidden; }
+    .div-fill { height:100%;background:var(--primary);border-radius:2px;transition:width 0.8s cubic-bezier(0.23,1,0.32,1);opacity:0.7; }
+
+    .inc-list { display:flex;flex-direction:column; }
+    .inc-item { padding:0.75rem 1rem;border-bottom:1px solid rgba(255,255,255,0.04);position:relative;padding-left:1.25rem; }
+    .inc-item:last-child { border-bottom:none; }
+    .inc-item::before { content:'';position:absolute;left:0;top:0;bottom:0;width:3px; }
+    .inc-item.critical::before { background:hsl(0,70%,55%); }
+    .inc-item.warning::before { background:hsl(38,90%,55%); }
+    .inc-item.safe::before { background:var(--primary); }
+    .inc-item-name { font-family:'Space Grotesk',sans-serif;font-size:0.78rem;font-weight:600;color:white;margin-bottom:0.2rem;line-height:1.3; }
+    .inc-item-meta { display:flex;gap:0.75rem;font-family:'JetBrains Mono',monospace;font-size:0.58rem;color:rgba(255,255,255,0.3); }
+    .inc-sev-tag { font-family:'JetBrains Mono',monospace;font-size:0.55rem;letter-spacing:0.1em;padding:0.1rem 0.4rem;border-radius:1px; }
+    .inc-sev-tag.critical { background:rgba(255,50,50,0.12);color:hsl(0,70%,65%);border:1px solid rgba(255,50,50,0.2); }
+    .inc-sev-tag.warning { background:rgba(255,180,0,0.12);color:hsl(38,90%,65%);border:1px solid rgba(255,180,0,0.2); }
+    .inc-sev-tag.safe { background:rgba(0,229,229,0.08);color:var(--primary);border:1px solid rgba(0,229,229,0.15); }
+    .no-inc { padding:2rem 1rem;text-align:center;font-family:'JetBrains Mono',monospace;font-size:0.72rem;color:rgba(255,255,255,0.2); }
+
+    /* ── Incident Modal ── */
+    .inc-modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 9000;
+      background: rgba(0,0,0,0.72); backdrop-filter: blur(4px);
+      align-items: center; justify-content: center;
+    }
+    .inc-modal-overlay.active { display: flex; }
+    .inc-modal {
+      position: relative; width: min(560px, calc(100vw - 2rem));
+      background: hsl(220,30%,8%);
+      border: 1px solid rgba(0,229,229,0.2);
+      box-shadow: 0 0 60px rgba(0,0,0,0.8), 0 0 30px rgba(0,229,229,0.08);
+      animation: modalIn 0.18s ease-out;
+    }
+    @keyframes modalIn {
+      from { opacity:0; transform:scale(0.94) translateY(8px); }
+      to   { opacity:1; transform:scale(1) translateY(0); }
+    }
+    .inc-modal-sev-bar { height:3px; width:100%; }
+    .inc-modal-header { padding:1.25rem 1.25rem 1rem; border-bottom:1px solid rgba(255,255,255,0.06); }
+    .inc-modal-badge { display:flex; align-items:center; gap:0.6rem; margin-bottom:0.6rem; }
+    .inc-modal-sev-dot { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+    .inc-modal-sev-label { font-family:'JetBrains Mono',monospace; font-size:0.6rem; letter-spacing:0.15em; text-transform:uppercase; }
+    .inc-modal-id { font-family:'JetBrains Mono',monospace; font-size:0.58rem; color:rgba(255,255,255,0.25); letter-spacing:0.1em; margin-left:auto; }
+    .inc-modal-title { font-family:'Space Grotesk',sans-serif; font-size:1.25rem; font-weight:700; color:white; line-height:1.3; }
+    .inc-modal-body { padding:1rem 1.25rem; }
+    .inc-modal-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.75rem 1rem; margin-bottom:1rem; }
+    .inc-modal-field-label { font-family:'JetBrains Mono',monospace; font-size:0.58rem; color:rgba(255,255,255,0.3); letter-spacing:0.1em; text-transform:uppercase; margin-bottom:0.2rem; }
+    .inc-modal-field-value { font-family:'JetBrains Mono',monospace; font-size:0.72rem; color:rgba(255,255,255,0.85); }
+    .inc-modal-desc { font-size:0.82rem; color:rgba(255,255,255,0.5); line-height:1.75; padding:0.85rem 1rem; background:rgba(0,0,0,0.25); border-left:2px solid rgba(0,229,229,0.2); margin-bottom:1rem; }
+    .inc-modal-footer { display:flex; align-items:center; justify-content:space-between; padding:0.85rem 1.25rem; border-top:1px solid rgba(255,255,255,0.06); gap:0.75rem; }
+    .inc-modal-close { font-family:'JetBrains Mono',monospace; font-size:0.68rem; color:rgba(255,255,255,0.35); background:none; border:1px solid rgba(255,255,255,0.1); padding:0.5rem 1rem; cursor:pointer; letter-spacing:0.08em; transition:all 0.15s; }
+    .inc-modal-close:hover { color:white; border-color:rgba(255,255,255,0.3); }
+    .inc-modal-link { font-family:'JetBrains Mono',monospace; font-size:0.68rem; color:var(--primary); background:rgba(0,229,229,0.08); border:1px solid rgba(0,229,229,0.25); padding:0.5rem 1.2rem; text-decoration:none; letter-spacing:0.08em; transition:all 0.15s; display:flex; align-items:center; gap:0.4rem; }
+    .inc-modal-link:hover { background:rgba(0,229,229,0.15); border-color:rgba(0,229,229,0.5); }
+    .map-marker-group { cursor:pointer; }
+
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar"></aside>
+    <button class="mobile-menu-toggle">
+      <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+    <div class="mobile-menu-overlay"></div>
+    <main class="main-content scanline">
+      <div class="container loc-page">
+        <div class="animate-fadeIn">
+
+          <a href="../map.html" class="back-link">
+            <svg width="10" height="10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+            海蝕現象マップに戻る
+          </a>
+
+          <div class="loc-header">
+            <div class="loc-badge" id="locBadge">LOADING...</div>
+            <h1 class="loc-title" id="locTitle">---</h1>
+            <div class="loc-sub" id="locSub">海蝕現象モニタリング地域</div>
+          </div>
+
+          <div class="alert-banner none" id="alertBanner">
+            <div class="pulse-dot"></div>
+            <span id="alertText">データ読み込み中...</span>
+          </div>
+
+          <div class="stats-strip">
+            <div class="stat-cell s-total"><div class="stat-val" id="sTot">—</div><div class="stat-label">総事案数</div></div>
+            <div class="stat-cell s-crit"><div class="stat-val" id="sCrit">—</div><div class="stat-label">重大</div></div>
+            <div class="stat-cell s-warn"><div class="stat-val" id="sWarn">—</div><div class="stat-label">警戒</div></div>
+            <div class="stat-cell s-safe"><div class="stat-val" id="sSafe">—</div><div class="stat-label">観察</div></div>
+          </div>
+
+
+          <!-- Incident Modal -->
+          <div class="inc-modal-overlay" id="incModalOverlay">
+            <div class="inc-modal" id="incModal">
+              <div class="inc-modal-sev-bar" id="incModalSevBar"></div>
+              <div class="inc-modal-header">
+                <div class="inc-modal-badge">
+                  <div class="inc-modal-sev-dot" id="incModalSevDot"></div>
+                  <span class="inc-modal-sev-label" id="incModalSevLabel"></span>
+                  <span class="inc-modal-id" id="incModalId"></span>
+                </div>
+                <div class="inc-modal-title" id="incModalTitle"></div>
+              </div>
+              <div class="inc-modal-body">
+                <div class="inc-modal-grid">
+                  <div class="inc-modal-field">
+                    <div class="inc-modal-field-label">ステータス</div>
+                    <div class="inc-modal-field-value" id="incModalStatus"></div>
+                  </div>
+                  <div class="inc-modal-field">
+                    <div class="inc-modal-field-label">GSI 計測値</div>
+                    <div class="inc-modal-field-value" id="incModalGsi"></div>
+                  </div>
+                  <div class="inc-modal-field">
+                    <div class="inc-modal-field-label">発生場所</div>
+                    <div class="inc-modal-field-value" id="incModalLocation"></div>
+                  </div>
+                  <div class="inc-modal-field">
+                    <div class="inc-modal-field-label">確認実体</div>
+                    <div class="inc-modal-field-value" id="incModalEntity"></div>
+                  </div>
+                  <div class="inc-modal-field">
+                    <div class="inc-modal-field-label">担当部門</div>
+                    <div class="inc-modal-field-value" id="incModalDivision"></div>
+                  </div>
+                  <div class="inc-modal-field">
+                    <div class="inc-modal-field-label">発生時刻</div>
+                    <div class="inc-modal-field-value" id="incModalTime"></div>
+                  </div>
+                </div>
+                <div class="inc-modal-desc" id="incModalDesc"></div>
+              </div>
+              <div class="inc-modal-footer">
+                <button class="inc-modal-close" id="incModalClose">✕ 閉じる</button>
+                <a class="inc-modal-link" id="incModalDetailLink" href="#">
+                  <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                  </svg>
+                  詳細ページを開く →
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <div class="main-grid">
+            <!-- Left: generated SVG map -->
+            <div class="map-panel">
+              <div class="map-panel-header">
+                <div class="map-panel-title">⬡ 海蝕現象マップ — <span id="mapTitle">---</span></div>
+                <div class="map-panel-coord" id="mapCoord">---</div>
+              </div>
+              <div id="mapSvgWrap"><svg id="mapSvg" xmlns="http://www.w3.org/2000/svg"></svg></div>
+              <div class="map-legend">
+                <div class="legend-item"><div class="legend-dot" style="background:hsl(0,70%,55%)"></div>重大</div>
+                <div class="legend-item"><div class="legend-dot" style="background:hsl(38,90%,55%)"></div>警戒</div>
+                <div class="legend-item"><div class="legend-dot" style="background:var(--primary)"></div>観察</div>
+                <div class="legend-item"><div class="legend-dot" style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.2)"></div>周辺市町村</div>
+              </div>
+            </div>
+
+            <!-- Right: panels -->
+            <div class="side-col">
+
+              <div class="panel">
+                <div class="panel-head">GSI 計測値</div>
+                <div class="gsi-wrap">
+                  <div class="gsi-row">
+                    <div class="gsi-label">最大 GSI</div>
+                    <div class="gsi-val" id="gsiVal" style="color:var(--primary)">—</div>
+                  </div>
+                  <div class="gsi-bar-bg"><div class="gsi-bar-fill" id="gsiFill" style="width:0%;background:var(--primary)"></div></div>
+                  <div class="gsi-ticks"><span class="gsi-tick">0</span><span class="gsi-tick">5</span><span class="gsi-tick">10</span><span class="gsi-tick">15</span></div>
+                </div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-head">地域情報</div>
+                <div class="info-row"><span class="info-k">市町村コード</span><span class="info-v" id="infoCode">—</span></div>
+                <div class="info-row"><span class="info-k">重心座標</span><span class="info-v" id="infoCoord">—</span></div>
+                <div class="info-row"><span class="info-k">警戒レベル</span><span class="info-v" id="infoAlert">—</span></div>
+                <div class="info-row"><span class="info-k">主担当部門</span><span class="info-v" id="infoDivision">—</span></div>
+                <div class="info-row"><span class="info-k">最終更新</span><span class="info-v" id="infoUpdated">—</span></div>
+              </div>
+
+              <div class="panel" id="divPanel" style="display:none">
+                <div class="panel-head">部門別事案比率</div>
+                <div class="div-bar-wrap" id="divBars"></div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-head">発生事案一覧</div>
+                <div class="inc-list" id="incList"><div class="no-inc">読み込み中...</div></div>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="../js/error-handler.js"></script>
+  <script src="../js/data-bundle.js"></script>
+
+  <script src="../js/loading.js"></script>
+  <script src="../js/sidebar.js"></script>
+  <script src="../js/bookmark.js"></script>
+  <script src="../js/main.js"></script>
+  <script src="../js/modal.js"></script>
+  <script src="../js/progress.js"></script>
+  <script src="../js/level-messages.js"></script>
+  <script>
+    if (!ProgressSystem.checkPageAccess('details/location-detail.html')) {
+      ModalSystem.warning('このページにアクセスするには LEVEL 1 が必要です。', 'ACCESS DENIED')
+        .then(() => { window.location.href = '../dashboard.html'; });
+    }
+
+    // データはJSONから読み込む（下部のinit()で取得）
+    let MUNIS = {};
+    let INCIDENTS = [];
+
+    const SEV_COLOR  = { critical:'hsl(0,70%,55%)', warning:'hsl(38,90%,55%)', safe:'hsl(180,70%,45%)' };
+    const SEV_RANK   = { critical:3, warning:2, safe:1 };
+    const SEV_LABEL  = { critical:'重大', warning:'警戒', safe:'観察' };
+
+    function assignMuni(lon, lat) {
+      let best=null, bestDist=Infinity;
+      for (const [code,m] of Object.entries(MUNIS)) {
+        const d = Math.hypot(lon-m.centLon, lat-m.centLat);
+        if (d < bestDist) { bestDist=d; best=code; }
+      }
+      return best;
+    }
+
+    function buildMap(code, muni, myIncs) {
+      const svg  = document.getElementById('mapSvg');
+      const wrap = document.getElementById('mapSvgWrap');
+      const W    = wrap.clientWidth  || 600;
+      const H    = wrap.clientHeight || 450;
+
+      const spreadLon=0.45, spreadLat=0.34;
+      const minLon=muni.centLon-spreadLon, maxLon=muni.centLon+spreadLon;
+      const minLat=muni.centLat-spreadLat, maxLat=muni.centLat+spreadLat;
+
+      function toSvg(lon,lat) {
+        return [
+          ((lon-minLon)/(maxLon-minLon))*W,
+          H - ((lat-minLat)/(maxLat-minLat))*H
+        ];
+      }
+
+      svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+      svg.innerHTML='';
+
+      const NS='http://www.w3.org/2000/svg';
+      const el=(tag,attrs={})=>{ const e=document.createElementNS(NS,tag); Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v)); return e; };
+
+      // Defs: radial glow
+      const defs=el('defs');
+      const rg=el('radialGradient',{id:'cg',cx:'50%',cy:'50%',r:'50%'});
+      [['0%','rgba(0,229,229,0.07)'],['100%','rgba(0,0,0,0)']].forEach(([o,c])=>{ const s=el('stop',{offset:o,'stop-color':c}); rg.appendChild(s); });
+      defs.appendChild(rg);
+      svg.appendChild(defs);
+
+      // Background
+      svg.appendChild(el('rect',{width:W,height:H,fill:'hsl(220,30%,6%)'}));
+      svg.appendChild(el('rect',{width:W,height:H,fill:'url(#cg)'}));
+
+      // Grid
+      const gridG=el('g',{opacity:'0.1'});
+      const gs=0.1;
+      for(let lon=Math.ceil(minLon/gs)*gs;lon<=maxLon;lon+=gs){
+        const [x]=toSvg(lon,minLat);
+        gridG.appendChild(el('line',{x1:x,y1:0,x2:x,y2:H,stroke:'rgba(0,229,229,0.5)','stroke-width':'0.5','stroke-dasharray':'3,7'}));
+      }
+      for(let lat=Math.ceil(minLat/gs)*gs;lat<=maxLat;lat+=gs){
+        const [,y]=toSvg(minLon,lat);
+        gridG.appendChild(el('line',{x1:0,y1:y,x2:W,y2:y,stroke:'rgba(0,229,229,0.5)','stroke-width':'0.5','stroke-dasharray':'3,7'}));
+      }
+      svg.appendChild(gridG);
+
+      // Neighbors
+      const neighborG=el('g');
+      const [fcx,fcy]=toSvg(muni.centLon,muni.centLat);
+      for(const [nc,nm] of Object.entries(MUNIS)){
+        if(nc===code) continue;
+        const [cx,cy]=toSvg(nm.centLon,nm.centLat);
+        if(cx<-30||cx>W+30||cy<-30||cy>H+30) continue;
+        const dist=Math.hypot(cx-fcx,cy-fcy);
+        if(dist<W*0.65){
+          neighborG.appendChild(el('line',{x1:fcx,y1:fcy,x2:cx,y2:cy,stroke:'rgba(255,255,255,0.04)','stroke-width':'0.5'}));
+        }
+        neighborG.appendChild(el('circle',{cx,cy,r:'3',fill:'rgba(255,255,255,0.07)',stroke:'rgba(255,255,255,0.15)','stroke-width':'0.5'}));
+        const t=el('text',{x:cx+5,y:cy+3,fill:'rgba(255,255,255,0.18)','font-size':'8','font-family':'JetBrains Mono, monospace'});
+        t.textContent=nm.name; neighborG.appendChild(t);
+      }
+      svg.appendChild(neighborG);
+
+      // Focus hex territory
+      const hexR=Math.min(W,H)*0.18;
+      const hexPts=Array.from({length:6},(_,i)=>{
+        const a=Math.PI/180*(60*i-30);
+        return `${fcx+hexR*Math.cos(a)},${fcy+hexR*Math.sin(a)}`;
+      }).join(' ');
+      svg.appendChild(el('polygon',{points:hexPts,fill:'rgba(0,229,229,0.025)',stroke:'rgba(0,229,229,0.12)','stroke-width':'1','stroke-dasharray':'4,4'}));
+
+      // Pulse rings
+      [0.32,0.46,0.62].forEach(r=>{
+        svg.appendChild(el('circle',{cx:fcx,cy:fcy,r:hexR*r,fill:'none',stroke:'rgba(0,229,229,0.07)','stroke-width':'1'}));
+      });
+
+      // Center dot
+      svg.appendChild(el('circle',{cx:fcx,cy:fcy,r:'5',fill:'var(--primary)',opacity:'0.9',filter:'drop-shadow(0 0 6px rgba(0,229,229,0.8))'}));
+      const cl=el('text',{x:fcx,y:fcy-10,fill:'rgba(0,229,229,0.9)','font-size':'11','font-weight':'bold','font-family':'Space Grotesk, sans-serif','text-anchor':'middle'});
+      cl.textContent=muni.name; svg.appendChild(cl);
+
+      // Incident markers (clickable)
+      myIncs.forEach((inc,idx)=>{
+        const [ix,iy]=toSvg(inc.lon,inc.lat);
+        const col=SEV_COLOR[inc.severity];
+
+        // Group for click handling
+        const g=el('g',{'class':'map-marker-group','data-idx':idx});
+
+        // Outer pulse ring
+        g.appendChild(el('circle',{cx:ix,cy:iy,r:'18',fill:'rgba(0,0,0,0)',stroke:col,'stroke-width':'1',opacity:'0.22','stroke-dasharray':'3,3'}));
+        // Hit area (invisible, larger)
+        const hit=el('circle',{cx:ix,cy:iy,r:'18',fill:'rgba(0,0,0,0)',stroke:'none',cursor:'pointer'});
+        // Dot
+        const dot=el('circle',{cx:ix,cy:iy,r:'9',fill:col,opacity:'0.9','class':'marker-dot',
+          filter:`drop-shadow(0 0 7px ${col})`,cursor:'pointer',
+          style:'transition:r 0.12s ease'});
+        // Number label
+        const num=el('text',{x:ix,y:iy+4,fill:'white','font-size':'7.5','font-weight':'bold',
+          'font-family':'JetBrains Mono, monospace','text-anchor':'middle','pointer-events':'none'});
+        num.textContent=idx+1;
+
+        g.appendChild(dot); g.appendChild(hit); g.appendChild(num);
+
+        // Callout line
+        const dx=ix>fcx?52:-52, dy=iy>fcy?22:-22;
+        g.appendChild(el('line',{x1:ix,y1:iy,x2:ix+dx,y2:iy+dy,stroke:col,'stroke-width':'0.6',opacity:'0.4','pointer-events':'none'}));
+        const lt=el('text',{x:ix+dx+(dx>0?3:-3),y:iy+dy,fill:col,opacity:'0.7','font-size':'7.5',
+          'font-family':'JetBrains Mono, monospace','text-anchor':dx>0?'start':'end','pointer-events':'none'});
+        lt.textContent=inc.location; g.appendChild(lt);
+
+        // Click → open modal
+        g.addEventListener('click', ()=>openIncidentModal(inc, idx));
+        // Hover animation
+        g.addEventListener('mouseenter', ()=>{ dot.setAttribute('r','11'); dot.setAttribute('opacity','1'); });
+        g.addEventListener('mouseleave', ()=>{ dot.setAttribute('r','9');  dot.setAttribute('opacity','0.9'); });
+
+        svg.appendChild(g);
+      });
+
+      // Scale bar
+      const [p1x]=toSvg(muni.centLon,muni.centLat);
+      const [p2x]=toSvg(muni.centLon+0.1,muni.centLat);
+      const km10px=Math.abs(p2x-p1x)*0.9;
+      const sbX=W-95, sbY=H-18;
+      svg.appendChild(el('line',{x1:sbX,y1:sbY,x2:sbX+km10px,y2:sbY,stroke:'rgba(255,255,255,0.3)','stroke-width':'1.5'}));
+      const st=el('text',{x:sbX+km10px/2,y:sbY-5,fill:'rgba(255,255,255,0.3)','font-size':'7','font-family':'JetBrains Mono, monospace','text-anchor':'middle'});
+      st.textContent='≈10km'; svg.appendChild(st);
+
+      // Compass
+      const cpx=28, cpy=28;
+      svg.appendChild(el('path',{d:`M${cpx} ${cpy-13} L${cpx+5} ${cpy+5} L${cpx} ${cpy+2} L${cpx-5} ${cpy+5} Z`,fill:'rgba(0,229,229,0.55)'}));
+      const cn=el('text',{x:cpx,y:cpy-15,fill:'rgba(0,229,229,0.65)','font-size':'8','font-family':'JetBrains Mono, monospace','text-anchor':'middle'});
+      cn.textContent='N'; svg.appendChild(cn);
+    }
+
+
+    // ── Incident Modal ──
+    const overlay   = document.getElementById('incModalOverlay');
+    const modalEl   = document.getElementById('incModal');
+    const closeBtn  = document.getElementById('incModalClose');
+
+    const SEV_LABEL_MAP = { critical:'重大', warning:'警戒', safe:'観察' };
+    const SEV_ALERT_TEXT = {
+      critical: '重大事案が発生中です。即時対応が必要です。付近への立入は禁止されています。',
+      warning:  '警戒事案を監視中です。動向に注意してください。',
+      safe:     '観察対象の事案があります。収束済みまたは軽微です。',
+    };
+
+    function openIncidentModal(inc, idx) {
+      const col = SEV_COLOR[inc.severity];
+      const label = SEV_LABEL_MAP[inc.severity];
+
+      document.getElementById('incModalSevBar').style.background = col;
+      document.getElementById('incModalSevDot').style.background = col;
+      document.getElementById('incModalSevDot').style.boxShadow  = `0 0 6px ${col}`;
+      document.getElementById('incModalSevLabel').textContent    = label;
+      document.getElementById('incModalSevLabel').style.color    = col;
+      document.getElementById('incModalId').textContent          = inc.id ? `#${inc.id}` : `#${String(idx+1).padStart(3,'0')}`;
+      document.getElementById('incModalTitle').textContent       = inc.name;
+      document.getElementById('incModalStatus').textContent      = inc.status;
+      document.getElementById('incModalGsi').textContent         = `${inc.gsi}`;
+      document.getElementById('incModalLocation').textContent    = inc.location;
+      document.getElementById('incModalEntity').textContent      = inc.entity;
+      document.getElementById('incModalDivision').textContent    = inc.division;
+      document.getElementById('incModalTime').textContent        = inc.time;
+      document.getElementById('incModalDesc').textContent        = inc.desc;
+
+      // 詳細ページリンク（mission-detail があれば遷移、なければ無効化）
+      const linkEl = document.getElementById('incModalDetailLink');
+      if (inc.missionId) {
+        linkEl.href = `./mission-detail.html?id=${inc.missionId}`;
+        linkEl.classList.remove('inc-modal-link-disabled');
+      } else {
+        linkEl.href = '#';
+        linkEl.classList.add('inc-modal-link-disabled');
+        linkEl.setAttribute('title', '関連ミッションページなし');
+      }
+
+      overlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+    }
+
+    function closeIncidentModal() {
+      overlay.classList.remove('active');
+      document.body.style.overflow = '';
+    }
+
+    closeBtn.addEventListener('click', closeIncidentModal);
+    overlay.addEventListener('click', (e) => {
+      if (e.target === overlay) closeIncidentModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeIncidentModal();
+    });
+
+    // ── Main: JSON読み込み後に描画 ──
+    async function init() {
+      const params = new URLSearchParams(location.search);
+      const code   = params.get('code') || '';
+
+      try {
+        // ① インラインデータ優先（file:// でも動作）
+        if (window.__DATA_MUNICIPALITIES_DATA && window.__DATA_AREA_INCIDENTS_DATA) {
+          MUNIS     = window.__DATA_MUNICIPALITIES_DATA.municipalities;
+          INCIDENTS = window.__DATA_AREA_INCIDENTS_DATA.incidents;
+        } else {
+          // ② HTTP / GitHub Pages フォールバック
+          const [muniRes, incRes] = await Promise.all([
+            fetch('../data/municipalities-data.json'),
+            fetch('../data/area-incidents-data.json')
+          ]);
+          if (!muniRes.ok || !incRes.ok) throw new Error('データの読み込みに失敗しました');
+          const muniData = await muniRes.json();
+          const incData  = await incRes.json();
+          MUNIS     = muniData.municipalities;
+          INCIDENTS = incData.incidents;
+        }
+      } catch (err) {
+        console.error('JSON load error:', err);
+        document.getElementById('locTitle').textContent = 'データ読み込みエラー';
+        document.getElementById('alertText').textContent = 'データの読み込みに失敗しました。';
+        return;
+      }
+
+      const muni = MUNIS[code];
+
+    if (!muni) {
+      document.getElementById('locTitle').textContent = '不明な地域コード';
+      document.getElementById('alertText').textContent = `code="${code}" はデータに存在しません。マップから選択してください。`;
+    } else {
+      const myIncs = INCIDENTS.filter(inc => assignMuni(inc.lon,inc.lat)===code)
+                               .sort((a,b)=>SEV_RANK[b.severity]-SEV_RANK[a.severity]);
+      const worst  = myIncs.length ? myIncs[0].severity : null;
+      const maxGsi = myIncs.length ? Math.max(...myIncs.map(i=>i.gsi)) : 0;
+      const divSet = [...new Set(myIncs.map(i=>i.division))];
+
+      document.title = `${muni.name} - 海蝕機関`;
+      document.getElementById('locBadge').textContent = `市町村コード: ${code} // 大分県 // KAISHOKU MONITORING`;
+      document.getElementById('locTitle').textContent = muni.name;
+      document.getElementById('locSub').textContent   = `${muni.centLat.toFixed(4)}°N  ${muni.centLon.toFixed(4)}°E  //  海蝕現象モニタリング地域`;
+      document.getElementById('mapTitle').textContent = muni.name;
+      document.getElementById('mapCoord').textContent = `${muni.centLat.toFixed(3)}°N, ${muni.centLon.toFixed(3)}°E`;
+
+      // Alert
+      const banner = document.getElementById('alertBanner');
+      const alertMap = {
+        critical:{ cls:'critical', text:'重大事案が発生中です。即時対応が必要です。付近への立入は禁止されています。' },
+        warning: { cls:'warning',  text:'警戒事案を監視中です。動向に注意してください。' },
+        safe:    { cls:'safe',     text:'観察対象の事案があります。収束済みまたは軽微です。' },
+      };
+      const ai = worst ? alertMap[worst] : { cls:'none', text:'現在この地域に記録された事案はありません。' };
+      banner.className=`alert-banner ${ai.cls}`;
+      document.getElementById('alertText').textContent=ai.text;
+
+      // Stats
+      document.getElementById('sTot').textContent  = myIncs.length;
+      document.getElementById('sCrit').textContent = myIncs.filter(i=>i.severity==='critical').length;
+      document.getElementById('sWarn').textContent = myIncs.filter(i=>i.severity==='warning').length;
+      document.getElementById('sSafe').textContent = myIncs.filter(i=>i.severity==='safe').length;
+
+      // Info
+      document.getElementById('infoCode').textContent     = code;
+      document.getElementById('infoCoord').textContent    = `${muni.centLat.toFixed(4)}°N, ${muni.centLon.toFixed(4)}°E`;
+      document.getElementById('infoAlert').textContent    = worst ? SEV_LABEL[worst] : '正常';
+      document.getElementById('infoDivision').textContent = divSet[0] || '未配備';
+      document.getElementById('infoUpdated').textContent  = new Date().toLocaleString('ja-JP',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+
+      // GSI
+      const gsiColor = maxGsi>=10?'hsl(0,70%,55%)':maxGsi>=5?'hsl(38,90%,55%)':'var(--primary)';
+      document.getElementById('gsiVal').textContent = maxGsi.toFixed(1);
+      document.getElementById('gsiVal').style.color = gsiColor;
+      setTimeout(()=>{
+        const f=document.getElementById('gsiFill');
+        f.style.width=Math.min(100,(maxGsi/15)*100)+'%';
+        f.style.background=gsiColor;
+        f.style.boxShadow=`2px 0 10px ${gsiColor}`;
+      },300);
+
+      // Division bars
+      if(divSet.length>0){
+        document.getElementById('divPanel').style.display='';
+        const cnt={};
+        myIncs.forEach(i=>{ cnt[i.division]=(cnt[i.division]||0)+1; });
+        const maxC=Math.max(...Object.values(cnt));
+        document.getElementById('divBars').innerHTML=Object.entries(cnt).map(([d,c])=>`
+          <div class="div-row">
+            <div class="div-name">${d} <span style="color:rgba(255,255,255,0.4)">(${c})</span></div>
+            <div class="div-track"><div class="div-fill" style="width:0%" data-pct="${(c/maxC*100).toFixed(0)}"></div></div>
+          </div>
+        `).join('');
+        setTimeout(()=>{
+          document.querySelectorAll('.div-fill').forEach(el=>{ el.style.width=el.dataset.pct+'%'; });
+        },400);
+      }
+
+      // Incident list
+      const listEl=document.getElementById('incList');
+      if(myIncs.length===0){
+        listEl.innerHTML=`<div class="no-inc">この地域に記録された事案はありません</div>`;
+      } else {
+        listEl.innerHTML=myIncs.map((inc,idx)=>`
+          <div class="inc-item ${inc.severity}">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.2rem;">
+              <div class="inc-item-name">${idx+1}. ${inc.name}</div>
+              <span class="inc-sev-tag ${inc.severity}">${SEV_LABEL[inc.severity]}</span>
+            </div>
+            <div class="inc-item-meta">
+              <span>${inc.status}</span>
+              <span>GSI ${inc.gsi}</span>
+              <span>${inc.time.slice(5)}</span>
+            </div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:0.6rem;color:rgba(255,255,255,0.25);margin-top:0.25rem;line-height:1.5;">${inc.desc}</div>
+          </div>
+        `).join('');
+      }
+
+      // Build map after layout
+      requestAnimationFrame(()=>{ setTimeout(()=>buildMap(code,muni,myIncs),50); });
+    }
+    } // end init
+
+    init();
+  </script>
+</body>
+</html>

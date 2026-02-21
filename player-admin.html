@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>機関員管理端末 — 海蝕機関</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #07090f;
+  --panel: #0c1018;
+  --panel2: #111620;
+  --border: #1a2030;
+  --border2: #263040;
+  --cyan: #00d4ff;
+  --cyan-dim: #002838;
+  --green: #00e676;
+  --green-dim: #002810;
+  --yellow: #ffd740;
+  --yellow-dim: #2a2000;
+  --red: #ff5252;
+  --red-dim: #2a0808;
+  --purple: #ce93d8;
+  --blue: #4fc3f7;
+  --text: #cdd6e8;
+  --text2: #7a8aa0;
+  --text3: #445060;
+  --mono: 'Share Tech Mono', monospace;
+  --sans: 'Noto Sans JP', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* scanlines */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,212,255,.012) 3px, rgba(0,212,255,.012) 4px);
+  pointer-events: none;
+  z-index: 9999;
+}
+
+.header {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border2);
+  padding: 0 24px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.header-title { font-family: var(--mono); font-size: 12px; color: var(--cyan); letter-spacing: .2em; }
+.header-sub { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: .1em; }
+.header-sep { flex: 1; }
+.header-time { font-family: var(--mono); font-size: 11px; color: var(--text3); }
+
+.main { display: flex; flex: 1; overflow: hidden; height: calc(100vh - 50px); }
+
+/* Sidebar */
+.sidebar {
+  width: 260px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.sidebar-header {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+.search-input {
+  flex: 1;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 7px 12px;
+  font-family: var(--sans);
+  font-size: 12px;
+  outline: none;
+}
+.search-input:focus { border-color: var(--cyan); }
+.search-input::placeholder { color: var(--text3); }
+.btn-new {
+  background: var(--cyan-dim);
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 6px 12px;
+  cursor: pointer;
+  letter-spacing: .1em;
+  white-space: nowrap;
+  transition: background .15s;
+}
+.btn-new:hover { background: #003a50; }
+
+.filter-bar {
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 6px;
+}
+.filter-btn {
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--text3);
+  font-family: var(--mono);
+  font-size: 9px;
+  padding: 3px 8px;
+  cursor: pointer;
+  letter-spacing: .08em;
+  transition: all .15s;
+}
+.filter-btn:hover, .filter-btn.active { border-color: var(--cyan); color: var(--cyan); }
+
+.player-list { overflow-y: auto; flex: 1; }
+.player-item {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  transition: background .1s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.player-item:hover { background: var(--panel2); }
+.player-item.active { background: #0a1828; border-left: 2px solid var(--cyan); }
+.player-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: bold;
+  flex-shrink: 0;
+}
+.player-info { flex: 1; min-width: 0; }
+.player-name { font-size: 13px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.player-id { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+.level-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Content */
+.content { flex: 1; overflow: hidden; display: flex; flex-direction: column; }
+
+/* Stats bar */
+.stats-bar {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex;
+  gap: 32px;
+  flex-shrink: 0;
+}
+.stat-item { display: flex; flex-direction: column; gap: 2px; }
+.stat-value { font-family: var(--mono); font-size: 20px; color: var(--cyan); }
+.stat-label { font-size: 10px; color: var(--text3); letter-spacing: .05em; }
+
+/* Edit panel */
+.edit-area { flex: 1; overflow-y: auto; padding: 24px; }
+
+.empty-state {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+  color: var(--text3);
+}
+.empty-icon { font-family: var(--mono); font-size: 40px; opacity: .3; }
+
+/* Section */
+.section { margin-bottom: 24px; }
+.section-head {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: .15em;
+  text-transform: uppercase;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.section-head::before { content: '//'; color: var(--cyan); }
+
+/* Profile card */
+.profile-card {
+  background: var(--panel2);
+  border: 1px solid var(--border2);
+  padding: 20px;
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+.profile-avatar-large {
+  width: 72px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: bold;
+  flex-shrink: 0;
+  border-radius: 2px;
+}
+.profile-meta { flex: 1; }
+.profile-name { font-size: 20px; font-weight: 500; margin-bottom: 4px; }
+.profile-id { font-family: var(--mono); font-size: 12px; color: var(--text3); margin-bottom: 8px; }
+.profile-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+.tag {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 3px 8px;
+  border-radius: 2px;
+  border: 1px solid;
+}
+
+/* XP bar */
+.xp-section {
+  background: var(--panel2);
+  border: 1px solid var(--border2);
+  padding: 16px 20px;
+  margin-bottom: 16px;
+}
+.xp-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.xp-level { font-family: var(--mono); font-size: 14px; color: var(--cyan); }
+.xp-val { font-family: var(--mono); font-size: 12px; color: var(--text2); }
+.xp-bar-bg {
+  height: 6px;
+  background: var(--border2);
+  margin-bottom: 6px;
+}
+.xp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), #0080ff);
+  transition: width .5s ease;
+}
+.xp-next { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+
+/* Form grid */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.form-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field.span2 { grid-column: span 2; }
+.field-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.field-input {
+  background: var(--panel2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 8px 12px;
+  font-family: var(--sans);
+  font-size: 13px;
+  outline: none;
+  transition: border-color .15s;
+}
+.field-input:focus { border-color: var(--cyan); }
+select.field-input {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237a8aa0'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+}
+
+/* XP editor */
+.xp-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.xp-controls input {
+  flex: 1;
+  background: var(--panel2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 8px 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+  outline: none;
+}
+.xp-controls input:focus { border-color: var(--cyan); }
+.xp-adjust-btn {
+  background: none;
+  border: 1px solid var(--border2);
+  color: var(--text2);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 7px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all .15s;
+}
+.xp-adjust-btn:hover { border-color: var(--cyan); color: var(--cyan); }
+.xp-adjust-btn.green { border-color: var(--green); color: var(--green); }
+.xp-adjust-btn.green:hover { background: var(--green-dim); }
+.xp-adjust-btn.red { border-color: var(--red); color: var(--red); }
+.xp-adjust-btn.red:hover { background: var(--red-dim); }
+
+/* Story state */
+.flag-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.flag-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 2px;
+  font-family: var(--mono);
+  font-size: 10px;
+  cursor: pointer;
+  border: 1px solid var(--border2);
+  transition: all .15s;
+  user-select: none;
+}
+.flag-chip.on { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+.flag-chip.off { color: var(--text3); }
+.flag-chip:hover { border-color: var(--text2); color: var(--text2); }
+.flag-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.var-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+.var-name { font-family: var(--mono); font-size: 11px; color: var(--text2); min-width: 140px; }
+.var-val { font-family: var(--mono); font-size: 14px; color: var(--yellow); }
+.var-input {
+  width: 80px;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  padding: 4px 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  outline: none;
+}
+.var-input:focus { border-color: var(--yellow); }
+
+/* History */
+.hist-table { width: 100%; border-collapse: collapse; }
+.hist-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  letter-spacing: .08em;
+  border-bottom: 1px solid var(--border2);
+  background: var(--panel2);
+}
+.hist-table td {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--text2);
+}
+.hist-table tr:hover td { background: var(--panel2); }
+.hist-type {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 2px;
+}
+
+/* Action buttons */
+.action-bar {
+  padding: 16px 24px;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-shrink: 0;
+}
+.btn-save {
+  background: var(--green-dim);
+  border: 1px solid var(--green);
+  color: var(--green);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 8px 20px;
+  cursor: pointer;
+  letter-spacing: .1em;
+  transition: background .15s;
+}
+.btn-save:hover { background: #004020; }
+.btn-reset {
+  background: none;
+  border: 1px solid var(--yellow);
+  color: var(--yellow);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 8px 16px;
+  cursor: pointer;
+  letter-spacing: .1em;
+  transition: background .15s;
+}
+.btn-reset:hover { background: var(--yellow-dim); }
+.btn-delete {
+  background: none;
+  border: 1px solid var(--red);
+  color: var(--red);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 8px 16px;
+  cursor: pointer;
+  letter-spacing: .1em;
+  transition: background .15s;
+  margin-left: auto;
+}
+.btn-delete:hover { background: var(--red-dim); }
+
+/* toast */
+.toast {
+  position: fixed;
+  bottom: 80px;
+  right: 24px;
+  background: var(--panel);
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 10px 18px;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: all .25s;
+  pointer-events: none;
+  z-index: 9998;
+  letter-spacing: .08em;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.warn { border-color: var(--yellow); color: var(--yellow); }
+.toast.err { border-color: var(--red); color: var(--red); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); }
+
+/* tabs */
+.tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--panel); flex-shrink: 0; }
+.tab {
+  padding: 10px 18px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text3);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  letter-spacing: .06em;
+  transition: color .15s;
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+
+.tab-pane { display: none; padding: 24px; overflow-y: auto; flex: 1; }
+.tab-pane.active { display: block; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-dot"></div>
+  <div class="header-title">KAISHOKU // PLAYER ADMIN</div>
+  <div class="header-sub">機関員管理端末 v2.0</div>
+  <div class="header-sep"></div>
+  <div class="header-time" id="clock"></div>
+</div>
+
+<div class="main">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-header">
+      <input class="search-input" id="searchInput" placeholder="機関員IDまたは氏名..." oninput="filterPlayers()">
+      <button class="btn-new" onclick="createNewPlayer()">+ 新規</button>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-btn active" data-filter="all" onclick="setFilter(this)">ALL</button>
+      <button class="filter-btn" data-filter="5" onclick="setFilter(this)">LV5</button>
+      <button class="filter-btn" data-filter="4" onclick="setFilter(this)">LV4</button>
+      <button class="filter-btn" data-filter="low" onclick="setFilter(this)">低LV</button>
+    </div>
+    <div class="player-list" id="playerList"></div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+    <!-- Stats bar -->
+    <div class="stats-bar" id="statsBar">
+      <div class="stat-item"><div class="stat-value" id="statTotal">0</div><div class="stat-label">総登録機関員</div></div>
+      <div class="stat-item"><div class="stat-value" id="statActive">0</div><div class="stat-label">LV5到達</div></div>
+      <div class="stat-item"><div class="stat-value" id="statAvgLv">—</div><div class="stat-label">平均レベル</div></div>
+      <div class="stat-item"><div class="stat-value" id="statAvgXp">—</div><div class="stat-label">平均XP</div></div>
+    </div>
+
+    <!-- Edit tabs -->
+    <div class="tabs" id="editTabs" style="display:none">
+      <div class="tab active" onclick="switchTab(this, 'tabProfile')">プロフィール</div>
+      <div class="tab" onclick="switchTab(this, 'tabProgress')">レベル / XP</div>
+      <div class="tab" onclick="switchTab(this, 'tabStory')">ストーリー状態</div>
+      <div class="tab" onclick="switchTab(this, 'tabHistory')">閲覧履歴</div>
+    </div>
+
+    <div id="editArea" class="edit-area">
+      <div class="empty-state">
+        <div class="empty-icon">[ 未選択 ]</div>
+        <p>左のリストから機関員を選択してください</p>
+        <p style="font-size:11px;color:var(--text3);font-family:var(--mono);margin-top:8px">ℹ localStorageに登録データが必要です</p>
+      </div>
+    </div>
+
+    <div class="action-bar" id="actionBar" style="display:none">
+      <button class="btn-save" onclick="savePlayer()">▶ 変更を保存</button>
+      <button class="btn-reset" onclick="resetStory()">↺ ストーリーリセット</button>
+      <button class="btn-reset" onclick="clearHistory()" style="border-color:var(--text3);color:var(--text3)">履歴クリア</button>
+      <button class="btn-delete" onclick="deletePlayer()">✕ 機関員を削除</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Level config ───
+const LEVEL_THRESHOLDS = { 0:0, 1:100, 2:250, 3:500, 4:1000, 5:2000 };
+const LEVEL_COLORS = {
+  0: ['#6b7280','#1a1d23'],
+  1: ['#3b82f6','#0a1628'],
+  2: ['#8b5cf6','#160d28'],
+  3: ['#10b981','#0a2018'],
+  4: ['#f59e0b','#281800'],
+  5: ['#ef4444','#280808'],
+};
+const LEVEL_TITLES = {
+  0:'見習い機関員', 1:'初級機関員', 2:'中級機関員',
+  3:'上級機関員', 4:'ベテラン機関員', 5:'エリート機関員'
+};
+const DIVISIONS = ['収束部門','支援部門','工作部門','外事部門','港湾部門'];
+
+// Known story flags from story-engine
+const KNOWN_FLAGS = [
+  'chapter1_open','chapter2_open','researcher_path_unlocked',
+  'paranoia_path_unlocked','deep_anomaly','world_collapse','true_ending_reached',
+  'paranoia_active','keyword_kaisoku_heard',
+];
+
+// ─── State ───
+let players = [];
+let filteredPlayers = [];
+let selectedId = null;
+let filterMode = 'all';
+
+// ─── Data layer ───
+function loadPlayers() {
+  try {
+    const raw = localStorage.getItem('kaishoku_users');
+    players = raw ? JSON.parse(raw) : [];
+  } catch(e) { players = []; }
+}
+
+function savePlayers() {
+  localStorage.setItem('kaishoku_users', JSON.stringify(players));
+}
+
+function getProgress(userId) {
+  try {
+    const raw = localStorage.getItem('kaishoku_progress');
+    const all = raw ? JSON.parse(raw) : {};
+    return all[userId] || { xp: 0, level: 0 };
+  } catch(e) { return { xp: 0, level: 0 }; }
+}
+
+function saveProgress(userId, prog) {
+  try {
+    const raw = localStorage.getItem('kaishoku_progress');
+    const all = raw ? JSON.parse(raw) : {};
+    all[userId] = prog;
+    localStorage.setItem('kaishoku_progress', JSON.stringify(all));
+  } catch(e) {}
+}
+
+function getStoryState(userId) {
+  try {
+    const raw = localStorage.getItem('kaishoku_story_state');
+    if (!raw) return null;
+    const all = JSON.parse(raw);
+    return all[userId] || all; // try user-scoped first, fallback to global
+  } catch(e) { return null; }
+}
+
+function saveStoryState(userId, state) {
+  try {
+    const raw = localStorage.getItem('kaishoku_story_state');
+    let all = raw ? JSON.parse(raw) : {};
+    // Detect if it's user-scoped or global
+    if (all[userId] !== undefined) {
+      all[userId] = state;
+    } else {
+      // global - just save it
+      all = state;
+    }
+    localStorage.setItem('kaishoku_story_state', JSON.stringify(all));
+  } catch(e) {}
+}
+
+function getViewHistory() {
+  try {
+    const raw = localStorage.getItem('kaishoku_view_history');
+    return raw ? JSON.parse(raw) : [];
+  } catch(e) { return []; }
+}
+
+function getLevelFromXp(xp) {
+  let level = 0;
+  for (let lv = 5; lv >= 0; lv--) {
+    if (xp >= LEVEL_THRESHOLDS[lv]) { level = lv; break; }
+  }
+  return level;
+}
+
+// ─── Init ───
+function init() {
+  loadPlayers();
+  updateStats();
+  filterPlayers();
+  updateClock();
+  setInterval(updateClock, 1000);
+}
+
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleString('ja-JP');
+}
+
+function updateStats() {
+  const total = players.length;
+  document.getElementById('statTotal').textContent = total;
+  
+  let lv5 = 0, totalLv = 0, totalXp = 0;
+  players.forEach(p => {
+    const prog = getProgress(p.id);
+    const lv = getLevelFromXp(prog.xp || 0);
+    if (lv >= 5) lv5++;
+    totalLv += lv;
+    totalXp += prog.xp || 0;
+  });
+  document.getElementById('statActive').textContent = lv5;
+  document.getElementById('statAvgLv').textContent = total ? (totalLv / total).toFixed(1) : '—';
+  document.getElementById('statAvgXp').textContent = total ? Math.round(totalXp / total).toLocaleString() : '—';
+}
+
+// ─── Filter & list ───
+function setFilter(btn) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  filterMode = btn.dataset.filter;
+  filterPlayers();
+}
+
+function filterPlayers() {
+  const q = document.getElementById('searchInput').value.toLowerCase();
+  filteredPlayers = players.filter(p => {
+    const matchQ = !q || p.id?.toLowerCase().includes(q) || p.name?.toLowerCase().includes(q);
+    if (!matchQ) return false;
+    if (filterMode === 'all') return true;
+    const lv = getLevelFromXp(getProgress(p.id).xp || 0);
+    if (filterMode === '5') return lv >= 5;
+    if (filterMode === '4') return lv === 4;
+    if (filterMode === 'low') return lv <= 1;
+    return true;
+  });
+  renderList();
+}
+
+function renderList() {
+  const el = document.getElementById('playerList');
+  if (filteredPlayers.length === 0) {
+    el.innerHTML = '<div style="padding:20px;text-align:center;color:var(--text3);font-family:var(--mono);font-size:11px">機関員が見つかりません</div>';
+    return;
+  }
+  el.innerHTML = filteredPlayers.map(p => {
+    const prog = getProgress(p.id);
+    const lv = getLevelFromXp(prog.xp || 0);
+    const [col, bg] = LEVEL_COLORS[lv];
+    const initials = (p.name || '?').charAt(0);
+    const isSelected = p.id === selectedId;
+    return `<div class="player-item ${isSelected?'active':''}" onclick="selectPlayer('${p.id}')">
+      <div class="player-avatar" style="background:${bg};color:${col};border:1px solid ${col}40">${initials}</div>
+      <div class="player-info">
+        <div class="player-name">${p.name || '(名称未設定)'}</div>
+        <div class="player-id">${p.id || '—'}</div>
+      </div>
+      <div class="level-badge" style="background:${bg};color:${col};border:1px solid ${col}">LV${lv}</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── Select player ───
+function selectPlayer(id) {
+  selectedId = id;
+  renderList();
+  renderEdit();
+  document.getElementById('editTabs').style.display = 'flex';
+  document.getElementById('actionBar').style.display = 'flex';
+  document.getElementById('editArea').style.padding = '0';
+  document.getElementById('editArea').style.overflow = 'hidden';
+  document.getElementById('editArea').style.display = 'flex';
+  document.getElementById('editArea').style.flexDirection = 'column';
+}
+
+function getSelectedPlayer() {
+  return players.find(p => p.id === selectedId);
+}
+
+function renderEdit() {
+  const p = getSelectedPlayer();
+  if (!p) return;
+  const prog = getProgress(p.id);
+  const xp = prog.xp || 0;
+  const lv = getLevelFromXp(xp);
+  const [col, bg] = LEVEL_COLORS[lv];
+  const nextXp = LEVEL_THRESHOLDS[lv+1];
+  const prevXp = LEVEL_THRESHOLDS[lv] || 0;
+  const pct = nextXp ? Math.min(100, ((xp - prevXp) / (nextXp - prevXp)) * 100) : 100;
+  const story = getStoryState(p.id) || { flags:{}, variables:{}, history:[], firedSet:{} };
+  const history = getViewHistory();
+
+  const editArea = document.getElementById('editArea');
+  editArea.innerHTML = `
+  <!-- Profile Tab -->
+  <div class="tab-pane active" id="tabProfile">
+    <div class="profile-card">
+      <div class="profile-avatar-large" style="background:${bg};color:${col};border:1px solid ${col}40;font-size:28px">
+        ${(p.name||'?').charAt(0)}
+      </div>
+      <div class="profile-meta">
+        <div class="profile-name">${p.name || '(未設定)'}</div>
+        <div class="profile-id">${p.id || '—'}</div>
+        <div class="profile-tags">
+          <span class="tag" style="color:${col};border-color:${col}40">${LEVEL_TITLES[lv]}</span>
+          <span class="tag" style="color:var(--text3);border-color:var(--border2)">${p.division || '未配属'}</span>
+          <span class="tag" style="color:var(--cyan);border-color:var(--cyan-dim)">XP ${xp.toLocaleString()}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head">基本情報</div>
+      <div class="form-grid">
+        <div class="field"><label class="field-label">機関員ID</label><input class="field-input" id="f_id" value="${esc(p.id||'')}"></div>
+        <div class="field"><label class="field-label">氏名</label><input class="field-input" id="f_name" value="${esc(p.name||'')}"></div>
+        <div class="field"><label class="field-label">所属部門</label>
+          <select class="field-input" id="f_division">
+            ${DIVISIONS.map(d=>`<option ${p.division===d?'selected':''}>${d}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field"><label class="field-label">パスワードハッシュ (読取専用)</label><input class="field-input" value="${esc(p.passwordHash||'—')}" readonly style="color:var(--text3)"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Progress Tab -->
+  <div class="tab-pane" id="tabProgress">
+    <div class="section">
+      <div class="section-head">現在のステータス</div>
+      <div class="xp-section">
+        <div class="xp-header">
+          <span class="xp-level">LEVEL ${lv} — ${LEVEL_TITLES[lv]}</span>
+          <span class="xp-val">${xp.toLocaleString()} XP</span>
+        </div>
+        <div class="xp-bar-bg"><div class="xp-bar-fill" style="width:${pct}%"></div></div>
+        <div class="xp-next">${nextXp ? `次のレベルまで ${(nextXp - xp).toLocaleString()} XP (LEVEL ${lv+1}: ${nextXp.toLocaleString()} XP)` : '最大レベル到達'}</div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-head">XP 直接編集</div>
+      <div class="form-grid">
+        <div class="field"><label class="field-label">現在の XP</label>
+          <div class="xp-controls">
+            <input type="number" id="f_xp" value="${xp}" min="0">
+            <button class="xp-adjust-btn green" onclick="addXp(100)">+100</button>
+            <button class="xp-adjust-btn green" onclick="addXp(500)">+500</button>
+            <button class="xp-adjust-btn red" onclick="addXp(-100)">−100</button>
+          </div>
+        </div>
+        <div class="field"><label class="field-label">レベル直接設定</label>
+          <div class="xp-controls">
+            ${[0,1,2,3,4,5].map(lv2=>`<button class="xp-adjust-btn ${lv2===lv?'green':''}" onclick="setLevel(${lv2})">LV${lv2}</button>`).join('')}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Story Tab -->
+  <div class="tab-pane" id="tabStory">
+    <div class="section">
+      <div class="section-head">ストーリーフラグ</div>
+      <div class="flag-grid" id="flagGrid">
+        ${KNOWN_FLAGS.map(f => {
+          const on = story.flags?.[f];
+          return `<div class="flag-chip ${on?'on':'off'}" onclick="toggleFlag('${f}')" id="flag_${f}">
+            <span class="flag-dot"></span>${f}
+          </div>`;
+        }).join('')}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <input class="field-input" id="newFlagInput" placeholder="カスタムフラグ名..." style="flex:1;padding:6px 10px;font-size:12px">
+        <button class="xp-adjust-btn green" onclick="addCustomFlag()" style="white-space:nowrap">+ フラグ追加</button>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-head">内部変数</div>
+      ${['anomaly_score','observer_load'].map(v => `
+        <div class="var-row">
+          <div class="var-name">${v}</div>
+          <div class="var-val">${story.variables?.[v] ?? 0}</div>
+          <input class="var-input" type="number" id="var_${v}" value="${story.variables?.[v] ?? 0}" min="0">
+          <button class="xp-adjust-btn" onclick="adjustVar('${v}', 5)">+5</button>
+          <button class="xp-adjust-btn" onclick="adjustVar('${v}', -5)">−5</button>
+          <button class="xp-adjust-btn red" onclick="setVar('${v}', 0)">reset</button>
+        </div>`).join('')}
+    </div>
+    <div class="section">
+      <div class="section-head">発火済みイベント (${Object.keys(story.firedSet||{}).length}件)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${Object.keys(story.firedSet||{}).map(e => `<span style="font-family:var(--mono);font-size:10px;padding:3px 8px;background:var(--panel2);border:1px solid var(--border2);color:var(--text3)">${e}</span>`).join('') || '<span style="color:var(--text3);font-family:var(--mono);font-size:11px">発火済みイベントなし</span>'}
+      </div>
+    </div>
+  </div>
+
+  <!-- History Tab -->
+  <div class="tab-pane" id="tabHistory">
+    <div class="section">
+      <div class="section-head">閲覧履歴 (${history.length}件 / 全ユーザー共有)</div>
+      ${history.length === 0 ? '<p style="color:var(--text3);font-family:var(--mono);font-size:11px">履歴なし</p>' : `
+      <table class="hist-table">
+        <thead><tr>
+          <th>タイプ</th><th>タイトル</th><th>ID</th><th>時刻</th>
+        </tr></thead>
+        <tbody>
+          ${history.slice(0,50).map(h => `<tr>
+            <td><span class="hist-type" style="background:var(--panel2);border:1px solid var(--border2);color:var(--text3)">${h.type||'—'}</span></td>
+            <td>${h.title||'—'}</td>
+            <td style="font-family:var(--mono);font-size:10px;color:var(--text3)">${h.id||'—'}</td>
+            <td style="font-family:var(--mono);font-size:10px;color:var(--text3)">${h.time ? new Date(h.time).toLocaleString('ja-JP') : '—'}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>`}
+    </div>
+  </div>
+  `;
+
+  // Restore active tab
+  const activeTab = document.querySelector('.tab.active');
+  if (activeTab) {
+    const targetId = activeTab.getAttribute('onclick')?.match(/'(\w+)'/)?.[1];
+    if (targetId) {
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      const el = document.getElementById(targetId);
+      if (el) el.classList.add('active');
+    }
+  }
+}
+
+function switchTab(btn, paneId) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+  btn.classList.add('active');
+  const pane = document.getElementById(paneId);
+  if (pane) pane.classList.add('active');
+}
+
+// ─── Flag operations ───
+function toggleFlag(flagName) {
+  const p = getSelectedPlayer();
+  if (!p) return;
+  const story = getStoryState(p.id) || { flags:{}, variables:{}, history:[], firedSet:{} };
+  story.flags = story.flags || {};
+  story.flags[flagName] = !story.flags[flagName];
+  saveStoryState(p.id, story);
+  
+  const chip = document.getElementById('flag_' + flagName);
+  if (chip) {
+    chip.classList.toggle('on', story.flags[flagName]);
+    chip.classList.toggle('off', !story.flags[flagName]);
+  }
+  toast(`フラグ ${flagName}: ${story.flags[flagName]?'ON':'OFF'}`);
+}
+
+function addCustomFlag() {
+  const input = document.getElementById('newFlagInput');
+  const name = input.value.trim();
+  if (!name) return;
+  if (KNOWN_FLAGS.includes(name)) { toast('既存のフラグです', 'warn'); return; }
+  KNOWN_FLAGS.push(name);
+  input.value = '';
+  toggleFlag(name);
+  renderEdit(); // re-render to show new flag
+}
+
+// ─── Variable operations ───
+function adjustVar(varName, delta) {
+  const p = getSelectedPlayer();
+  if (!p) return;
+  const story = getStoryState(p.id) || { flags:{}, variables:{} };
+  story.variables = story.variables || {};
+  story.variables[varName] = Math.max(0, (story.variables[varName] || 0) + delta);
+  saveStoryState(p.id, story);
+  
+  document.getElementById('var_' + varName).value = story.variables[varName];
+  document.querySelector(`#var_${varName}`)?.closest('.var-row')?.querySelector('.var-val')?.setAttribute('textContent', story.variables[varName]);
+  renderEdit();
+}
+
+function setVar(varName, val) {
+  const p = getSelectedPlayer();
+  if (!p) return;
+  const story = getStoryState(p.id) || { flags:{}, variables:{} };
+  story.variables = story.variables || {};
+  story.variables[varName] = val;
+  saveStoryState(p.id, story);
+  renderEdit();
+}
+
+// ─── XP operations ───
+function addXp(delta) {
+  const input = document.getElementById('f_xp');
+  if (!input) return;
+  const current = parseInt(input.value) || 0;
+  input.value = Math.max(0, current + delta);
+}
+
+function setLevel(lv) {
+  const xp = LEVEL_THRESHOLDS[lv];
+  const input = document.getElementById('f_xp');
+  if (input) input.value = xp;
+}
+
+// ─── Save ───
+function savePlayer() {
+  const p = getSelectedPlayer();
+  if (!p) return;
+
+  // Profile
+  const newId = document.getElementById('f_id')?.value.trim() || p.id;
+  const newName = document.getElementById('f_name')?.value.trim() || p.name;
+  const newDiv = document.getElementById('f_division')?.value || p.division;
+
+  // XP
+  const newXp = parseInt(document.getElementById('f_xp')?.value) || 0;
+  const newLv = getLevelFromXp(newXp);
+
+  // Story variables
+  const story = getStoryState(p.id) || { flags:{}, variables:{} };
+  story.variables = story.variables || {};
+  ['anomaly_score','observer_load'].forEach(v => {
+    const inp = document.getElementById('var_' + v);
+    if (inp) story.variables[v] = parseInt(inp.value) || 0;
+  });
+
+  // Apply
+  const idx = players.indexOf(p);
+  players[idx] = { ...p, id: newId, name: newName, division: newDiv };
+  savePlayers();
+  saveProgress(newId, { xp: newXp, level: newLv });
+  saveStoryState(newId, story);
+  
+  // Update current user if it's selected
+  try {
+    const cur = JSON.parse(localStorage.getItem('kaishoku_current_user') || 'null');
+    if (cur && cur.id === p.id) {
+      cur.id = newId; cur.name = newName; cur.division = newDiv;
+      cur.level = newLv; cur.xp = newXp;
+      localStorage.setItem('kaishoku_current_user', JSON.stringify(cur));
+    }
+  } catch(e) {}
+
+  selectedId = newId;
+  loadPlayers();
+  updateStats();
+  filterPlayers();
+  toast('保存しました ✓');
+}
+
+// ─── Reset / Delete ───
+function resetStory() {
+  if (!selectedId) return;
+  if (!confirm('このプレイヤーのストーリー状態をリセットしますか？')) return;
+  saveStoryState(selectedId, { flags:{}, variables:{ anomaly_score:0, observer_load:0 }, history:[], firedSet:{} });
+  renderEdit();
+  toast('ストーリー状態をリセットしました', 'warn');
+}
+
+function clearHistory() {
+  if (!confirm('閲覧履歴をすべてクリアしますか？（全ユーザー）')) return;
+  localStorage.removeItem('kaishoku_view_history');
+  renderEdit();
+  toast('閲覧履歴をクリアしました', 'warn');
+}
+
+function deletePlayer() {
+  const p = getSelectedPlayer();
+  if (!p) return;
+  if (!confirm(`${p.name || p.id} を削除しますか？この操作は取り消せません。`)) return;
+  players = players.filter(u => u.id !== p.id);
+  savePlayers();
+  selectedId = null;
+  loadPlayers();
+  updateStats();
+  filterPlayers();
+  document.getElementById('editTabs').style.display = 'none';
+  document.getElementById('actionBar').style.display = 'none';
+  document.getElementById('editArea').innerHTML = `<div class="empty-state"><div class="empty-icon">[ 削除済み ]</div><p>機関員を削除しました</p></div>`;
+  toast('削除しました', 'err');
+}
+
+// ─── Create new player ───
+function createNewPlayer() {
+  const id = `K-${String(Math.floor(Math.random()*999)+1).padStart(3,'0')}-${String(Math.floor(Math.random()*999)+100)}`;
+  const newPlayer = {
+    id, name: '新規機関員', division: '収束部門',
+    passwordHash: 'unset', registeredAt: new Date().toISOString()
+  };
+  players.unshift(newPlayer);
+  savePlayers();
+  saveProgress(id, { xp: 0, level: 0 });
+  filterPlayers();
+  selectPlayer(id);
+  toast('新規機関員を作成しました ✓');
+}
+
+// ─── Toast ───
+function toast(msg, type='') {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.className = 'toast', 2800);
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+init();
+</script>
+</body>
+</html>
