@@ -70,11 +70,15 @@
   <script src="./js/main.js"></script>
   <script src="./js/story-engine.js"></script>
   <script src="./js/notifications.js"></script>
-  </script>
   
   <script src="./js/modal.js"></script>
   <script src="./js/progress.js"></script>
   <script src="./js/personnel-database.js"></script>
-  <script src="./js/classified.js"></script>
+  <script src="./js/classified.js">
+    if (!ProgressSystem.checkPageAccess('classified.html')) {
+      ModalSystem.warning('このページにアクセスするには LEVEL 5 が必要です。', 'ACCESS DENIED')
+        .then(function() { window.location.href = './dashboard.html'; });
+    }
+  </script>
 </body>
 </html>
