@@ -2767,11 +2767,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["personnel-database.js", "classified.js"]
  },
  "entity-detail": {
- html: "
+ html: `
 
  <div class="container">
 
