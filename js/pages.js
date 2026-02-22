@@ -3075,11 +3075,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["location-detail-init.js"]
  },
  "mission-detail": {
- html: "
+ html: `
 
  <div class="container">
 
