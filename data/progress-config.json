@@ -22,7 +22,8 @@
       "codex.html",
       "reports.html",
       "agency-history.html",
-      "skill-tree.html"
+      "skill-tree.html",
+      "novel.html"
     ],
     "2": [
       "division-convergence.html",
@@ -50,18 +51,18 @@
     ]
   },
   "xpRewards": {
-    "first_login":      50,
-    "profile_view":     10,
-    "chat_message":      5,
-    "division_view":    20,
-    "phenomenon_view":  30,
+    "first_login": 50,
+    "profile_view": 10,
+    "chat_message": 5,
+    "division_view": 20,
+    "phenomenon_view": 30,
     "mission_complete": 100,
-    "daily_login":      25,
-    "location_view":    15,
-    "entity_view":      15,
-    "module_view":      15,
-    "search_use":        8,
-    "bookmark_add":      5
+    "daily_login": 25,
+    "location_view": 15,
+    "entity_view": 15,
+    "module_view": 15,
+    "search_use": 8,
+    "bookmark_add": 5
   },
   "dailyLoginRewards": {
     "1": 25,
