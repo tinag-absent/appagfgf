@@ -2573,11 +2573,11 @@ window.PAGES = {
 
   </div>
 
- </div>",
+ </div>`,
  scripts: ["login-init.js"]
  },
  "entities": {
- html: "
+ html: `
 
  <div class="container">
 
