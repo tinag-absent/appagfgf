@@ -3,7 +3,7 @@
 // Auto-generated SPA page definitions
 window.PAGES = {
  "index": {
- html: "
+ html: `
 
  <div class="container">
 
@@ -233,11 +233,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: []
  },
  "divisions": {
- html: "
+ html: `
 
  <div class="container">
 
@@ -663,11 +663,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: []
  },
  "missions": {
- html: "
+ html: `
 
  <div class="container">
 
@@ -789,11 +789,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["mission-data.js", "missions-search.js"]
  },
  "phenomenon": {
- html: "
+ html: `
 
  <div class="container">
 
@@ -1007,11 +1007,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: []
  },
  "chat": {
- html: "
+ html: `
 
  <div class="container" style="max-width: 100%;">
 
@@ -1175,11 +1175,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["chat.js"]
  },
  "map": {
- html: "
+ html: `
 
  <div class="container" style="max-width:100%;">
 
@@ -1375,11 +1375,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["map-data.js"]
  },
  "search": {
- html: "
+ html: `
 
  <div class="container">
 
@@ -1659,11 +1659,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["mission-data.js", "catalog-data.js", "personnel-database.js"]
  },
  "history": {
- html: "
+ html: `
 
  <div class="container">
 
@@ -1805,11 +1805,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["view-history.js"]
  },
  "dashboard": {
- html: "
+ html: `
 
  <div class="container">
 
