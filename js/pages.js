@@ -2795,11 +2795,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["mission-data.js", "catalog-data.js", "view-history.js", "bookmark.js", "entity-detail-init.js"]
  },
  "location-detail": {
- html: "
+ html: `
 
  <div class="container loc-page">
 
