@@ -2683,11 +2683,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["catalog-data.js", "catalog-modules.js"]
  },
  "classified": {
- html: "
+ html: `
 
  <div class="container">
 
