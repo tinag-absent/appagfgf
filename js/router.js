@@ -35,6 +35,7 @@
     '/codex':               'codex',
     '/reports':             'reports',
     '/agency-history':      'agency-history',
+    '/novel':               'novel',
   };
 
   // Convert old-style .html paths to SPA routes
@@ -275,6 +276,7 @@
       'codex': '世界観コデックス - 海蝕機関',
       'reports': 'インシデント報告 - 海蝕機関',
       'agency-history': '機関の歴史 - 海蝕機関',
+      'novel': '記録文庫 - 海蝕機関',
     };
     document.title = titles[pageKey] || '海蝕機関';
   }
