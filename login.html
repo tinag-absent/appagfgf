@@ -264,7 +264,6 @@
   <script src="./js/main.js"></script>
   <script src="./js/story-engine.js"></script>
   <script src="./js/notifications.js"></script>
-  </script>
   
   <script src="./js/progress.js"></script>
   <script>
@@ -513,10 +512,56 @@
     window.addEventListener('load', function() {
       const currentUser = getCurrentUser();
       if (currentUser) {
-        // Already logged in, redirect to dashboard
-        window.location.href = './dashboard.html';
+        // Already logged in — show banner instead of silent redirect
+        showAlreadyLoggedInBanner(currentUser);
       }
     });
+
+    function showAlreadyLoggedInBanner(user) {
+      const banner = document.createElement('div');
+      banner.id = 'alreadyLoggedInBanner';
+      banner.style.cssText = [
+        'position: fixed', 'top: 0', 'left: 0', 'right: 0',
+        'background: rgba(6,78,59,0.95)', 'border-bottom: 1px solid rgb(16,185,129)',
+        'padding: 1rem 1.5rem', 'display: flex', 'align-items: center',
+        'justify-content: space-between', 'z-index: 10000',
+        'backdrop-filter: blur(10px)', 'flex-wrap: wrap', 'gap: 0.75rem'
+      ].join('; ');
+
+      banner.innerHTML = `
+        <div style="font-family:'JetBrains Mono',monospace; font-size:0.8rem; color:rgba(255,255,255,0.9);">
+          <span style="color:rgb(16,185,129); font-weight:700;">▶ セッション継続中</span>
+          &nbsp;|&nbsp; <strong>${user.name}</strong> (${user.id}) としてログイン済みです
+        </div>
+        <div style="display:flex; gap:0.75rem;">
+          <a href="./dashboard.html"
+             style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; padding:0.4rem 1rem;
+                    background:rgb(16,185,129); color:#000; font-weight:700; text-decoration:none;
+                    letter-spacing:0.05em; border-radius:2px;">
+            ダッシュボードへ →
+          </a>
+          <button onclick="logoutAndStay()"
+             style="font-family:'JetBrains Mono',monospace; font-size:0.75rem; padding:0.4rem 1rem;
+                    background:transparent; color:rgba(255,255,255,0.7); border:1px solid rgba(255,255,255,0.3);
+                    cursor:pointer; letter-spacing:0.05em; border-radius:2px;">
+            ログアウト
+          </button>
+        </div>
+      `;
+
+      document.body.prepend(banner);
+
+      // Push main content down so it isn't hidden behind the banner
+      document.querySelector('.app-layout').style.paddingTop = '60px';
+    }
+
+    function logoutAndStay() {
+      clearCurrentUser();
+      const banner = document.getElementById('alreadyLoggedInBanner');
+      if (banner) banner.remove();
+      document.querySelector('.app-layout').style.paddingTop = '';
+      showToast('success', 'LOGGED OUT', 'ログアウトしました。再度ログインしてください。');
+    }
   </script>
 </body>
 </html>

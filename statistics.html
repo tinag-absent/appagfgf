@@ -34,7 +34,6 @@
   <script src="./js/view-history.js"></script>
   <script src="./js/story-engine.js"></script>
   <script src="./js/notifications.js"></script>
-  </script>
   
   <script src="./js/bookmark.js"></script>
   <script src="./js/mission-data.js"></script>
@@ -43,6 +42,11 @@
   <script src="./js/map-data.js"></script>
   <script src="./js/sidebar.js"></script>
   <script src="./js/pages.js"></script>
-  <script src="./js/router.js"></script>
+  <script src="./js/router.js">
+    if (!ProgressSystem.checkPageAccess('statistics.html')) {
+      ModalSystem.warning('このページにアクセスするには LEVEL 2 が必要です。', 'ACCESS DENIED')
+        .then(function() { window.location.href = './dashboard.html'; });
+    }
+  </script>
 </body>
 </html>

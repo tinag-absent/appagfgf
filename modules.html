@@ -190,11 +190,15 @@
   <script src="./js/main.js"></script>
   <script src="./js/story-engine.js"></script>
   <script src="./js/notifications.js"></script>
-  </script>
   
   <script src="./js/modal.js"></script>
   <script src="./js/progress.js"></script>
   <script src="./js/catalog-data.js"></script>
-  <script src="./js/catalog-modules.js"></script>
+  <script src="./js/catalog-modules.js">
+    if (!ProgressSystem.checkPageAccess('modules.html')) {
+      ModalSystem.warning('このページにアクセスするには LEVEL 2 が必要です。', 'ACCESS DENIED')
+        .then(function() { window.location.href = './dashboard.html'; });
+    }
+  </script>
 </body>
 </html>

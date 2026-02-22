@@ -322,8 +322,6 @@
   <script src="./js/main.js"></script>
   <script src="./js/story-engine.js"></script>
   <script src="./js/notifications.js"></script>
-  </script>
-  
   <script src="./js/modal.js"></script>
   <script src="./js/progress.js"></script>
   <script src="./js/level-messages.js"></script>
@@ -509,7 +507,7 @@
     }
 
     function personnelCard(p) {
-      var userLevel = ProgressSystem.getUserProgress().level || 0;
+      var userLevel = ProgressSystem.getUserData().level || 0;
       if (userLevel < 5) {
         return '<div class="result-card" style="position:relative;">'
           + '<div class="card-type-stripe stripe-personnel"></div>'
