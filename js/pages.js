@@ -3141,11 +3141,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["mission-data.js", "catalog-data.js", "view-history.js", "bookmark.js", "module-detail-init.js"]
  },
  "personnel-detail": {
- html: "
+ html: `
 
  <div class="container">
 
