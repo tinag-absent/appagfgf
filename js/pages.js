@@ -3169,11 +3169,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["personnel-database.js", "view-history.js", "bookmark.js", "personnel-detail.js"]
  },
  "division-foreign": {
- html: "
+ html: `
 
  <div class="container">
 
