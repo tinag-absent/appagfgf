@@ -3541,11 +3541,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: []
  },
  "division-convergence": {
- html: "
+ html: `
 
  <div class="container">
 
@@ -3743,11 +3743,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["division-convergence-init.js"]
  },
  "division-port": {
- html: "
+ html: `
 
  <div class="container">
 
@@ -3913,11 +3913,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: []
  },
  "division-engineering": {
- html: "
+ html: `
 
  <div class="container">
 
@@ -4085,11 +4085,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: []
  },
  "statistics": {
- html: "
+ html: `
 
  <div class="container">
 
@@ -4163,11 +4163,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["mission-data.js", "catalog-data.js", "personnel-database.js", "statistics.js"]
  },
  "codex": {
- html: "
+ html: `
 
  <div class="container">
 
@@ -4297,11 +4297,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["reports.js"]
  },
  "agency-history": {
- html: "
+ html: `
 
  <div class="container">
 
@@ -4375,12 +4375,12 @@ window.PAGES = {
 
  </div>
 
-",
+`,
  scripts: ["agency-history.js"]
  },
 ,
  "novel": {
- html: "
+ html: `
 
  <div class="container">
 
@@ -4500,13 +4500,13 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["novel-init.js"]
  }
 };
 ,
  "novel": {
- html: "
+ html: `
 
  <div class="container">
 
@@ -4626,7 +4626,7 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["novel-init.js"]
  }
 };
