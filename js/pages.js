@@ -3113,11 +3113,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["mission-data.js", "view-history.js", "bookmark.js", "mission-detail.js"]
  },
  "module-detail": {
- html: "
+ html: `
 
  <div class="container">
 
