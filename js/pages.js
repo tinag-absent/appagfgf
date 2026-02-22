@@ -2619,11 +2619,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["catalog-data.js", "catalog-entities.js"]
  },
  "modules": {
- html: "
+ html: `
 
  <div class="container">
 
