@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title>職員用申請フォーム — 海蝕機関</title>
+  <link rel="icon" type="image/png" href="./images/favicon.png">
+  <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/sidebar.css">
+  <link rel="stylesheet" href="./css/mobile.css">
+  <style>
+    .forms-tabs {
+      display: flex;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+      margin-bottom: 2rem;
+      overflow-x: auto;
+    }
+    .forms-tab {
+      padding: .75rem 1.5rem;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted-foreground);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .75rem;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      cursor: pointer;
+      white-space: nowrap;
+      margin-bottom: -1px;
+      transition: all .2s;
+    }
+    .forms-tab:hover { color: var(--foreground); }
+    .forms-tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+    .forms-tab .tab-icon { margin-right: .4rem; }
+
+    .form-panel { display: none; }
+    .form-panel.active { display: block; }
+
+    /* Receipt stack */
+    .receipts-list {
+      margin-top: 2.5rem;
+      border-top: 1px solid rgba(255,255,255,.08);
+      padding-top: 1.5rem;
+    }
+    .receipts-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .72rem;
+      color: var(--muted-foreground);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      margin-bottom: 1rem;
+    }
+    .receipt-item {
+      background: rgba(0,0,0,.25);
+      border: 1px solid rgba(255,255,255,.07);
+      border-left: 3px solid var(--rc, var(--primary));
+      padding: .85rem 1.25rem;
+      margin-bottom: .5rem;
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    .receipt-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .6rem;
+      padding: .2rem .5rem;
+      border: 1px solid var(--rc, var(--primary));
+      color: var(--rc, var(--primary));
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .receipt-body { flex: 1; }
+    .receipt-title {
+      font-size: .9rem;
+      color: white;
+      font-weight: 500;
+      margin-bottom: .2rem;
+    }
+    .receipt-meta {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .65rem;
+      color: var(--muted-foreground);
+    }
+    .receipt-status {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .65rem;
+      padding: .15rem .5rem;
+      background: rgba(0,255,255,.08);
+      border: 1px solid rgba(0,255,255,.2);
+      color: var(--primary);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+
+    /* General form styles */
+    .f-section { margin-bottom: 1.5rem; }
+    .f-section-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .68rem;
+      color: var(--muted-foreground);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      border-bottom: 1px solid rgba(255,255,255,.07);
+      padding-bottom: .4rem;
+      margin-bottom: 1rem;
+    }
+    .f-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+    @media(max-width:640px){.f-grid{grid-template-columns:1fr;}}
+    .f-full { grid-column: span 2; }
+    @media(max-width:640px){.f-full{grid-column:span 1;}}
+
+    .f-field { margin-bottom: .85rem; }
+    .f-label {
+      display: block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .68rem;
+      color: var(--muted-foreground);
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      margin-bottom: .35rem;
+    }
+    .f-label.req::after { content: ' *'; color: #ef4444; }
+    .f-input, .f-select, .f-textarea {
+      width: 100%;
+      background: rgba(0,0,0,.4);
+      border: 1px solid rgba(255,255,255,.1);
+      color: var(--foreground);
+      padding: .6rem .9rem;
+      font-family: 'Inter', sans-serif;
+      font-size: .875rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .f-input:focus, .f-select:focus, .f-textarea:focus { border-color: var(--primary); }
+    .f-select { appearance: none; cursor: pointer; }
+    .f-textarea { resize: vertical; min-height: 80px; }
+    .f-checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: .75rem;
+      padding: .65rem .9rem;
+      background: rgba(0,0,0,.25);
+      border: 1px solid rgba(255,255,255,.07);
+      cursor: pointer;
+      transition: border-color .15s;
+    }
+    .f-checkbox-row:hover { border-color: rgba(255,255,255,.15); }
+    .f-checkbox-row input[type=checkbox] {
+      width: 14px; height: 14px; margin-top: 2px;
+      accent-color: var(--primary);
+      flex-shrink: 0;
+    }
+    .f-checkbox-row label {
+      font-size: .82rem;
+      color: var(--muted-foreground);
+      cursor: pointer;
+    }
+
+    .f-info-box {
+      background: rgba(0,255,255,.04);
+      border: 1px solid rgba(0,255,255,.15);
+      padding: .75rem 1rem;
+      font-size: .8rem;
+      color: var(--muted-foreground);
+      margin-bottom: 1.5rem;
+      line-height: 1.6;
+    }
+    .f-info-box .f-info-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .65rem;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      margin-bottom: .35rem;
+    }
+
+    .f-submit {
+      padding: .85rem 2rem;
+      background: rgba(0,255,255,.1);
+      border: 1px solid var(--primary);
+      color: var(--primary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .82rem;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .f-submit:hover { background: rgba(0,255,255,.18); }
+
+    /* Skill challenge */
+    .skill-challenge {
+      background: rgba(139,92,246,.06);
+      border: 1px solid rgba(139,92,246,.2);
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.25rem;
+    }
+    .sc-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .65rem;
+      color: #8b5cf6;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      margin-bottom: .5rem;
+    }
+    .sc-input {
+      width: 100%;
+      background: rgba(0,0,0,.4);
+      border: 1px solid rgba(139,92,246,.25);
+      color: #8b5cf6;
+      padding: .6rem .9rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .875rem;
+      outline: none;
+    }
+    .sc-input:focus { border-color: #8b5cf6; }
+    .sc-hint {
+      font-size: .72rem;
+      color: rgba(139,92,246,.5);
+      margin-top: .4rem;
+    }
+    .sc-correct {
+      color: #10b981;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .72rem;
+      margin-top: .4rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar"></aside>
+    <button class="mobile-menu-toggle">
+      <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+    <div class="mobile-menu-overlay"></div>
+
+    <main class="main-content scanline">
+      <div class="container animate-fadeIn">
+
+        <div style="border-left:4px solid var(--primary);padding-left:1rem;margin-bottom:2rem;">
+          <h1 style="font-size:2.5rem;font-family:'Space Grotesk',sans-serif;font-weight:700;color:white;text-transform:uppercase;">
+            職員用申請フォーム
+          </h1>
+          <p class="font-mono" style="font-size:.875rem;margin-top:.5rem;color:var(--muted-foreground);">
+            PERSONNEL FORMS — 各種申請・届出
+          </p>
+        </div>
+
+        <!-- Tabs -->
+        <div class="forms-tabs">
+          <button class="forms-tab active" onclick="switchForm('leave',this)"><span class="tab-icon">📋</span>休暇申請</button>
+          <button class="forms-tab" onclick="switchForm('equipment',this)"><span class="tab-icon">⚙️</span>装備申請</button>
+          <button class="forms-tab" onclick="switchForm('promotion',this)"><span class="tab-icon">⬆️</span>昇格推薦</button>
+          <button class="forms-tab" onclick="switchForm('anomaly',this)"><span class="tab-icon">⚠️</span>個人異常報告</button>
+          <button class="forms-tab" onclick="switchForm('classified',this)"><span class="tab-icon">🔐</span>機密情報開示申請</button>
+        </div>
+
+        <!-- ① 休暇申請 -->
+        <div class="form-panel active" id="panel-leave">
+          <div class="f-info-box">
+            <div class="f-info-label">// 注意事項</div>
+            休暇取得には7日前までの申請が必要です。収束部門・外縁部門は事案対応中の申請は却下されます。
+          </div>
+          <form onsubmit="submitForm(event,'leave','休暇申請')">
+            <div class="f-section">
+              <div class="f-section-title">基本情報</div>
+              <div class="f-grid">
+                <div class="f-field">
+                  <label class="f-label req">氏名</label>
+                  <input class="f-input" id="leave-name" required placeholder="田中 一郎">
+                </div>
+                <div class="f-field">
+                  <label class="f-label req">職員ID</label>
+                  <input class="f-input" id="leave-id" required placeholder="K-001-XXX">
+                </div>
+                <div class="f-field">
+                  <label class="f-label req">所属部門</label>
+                  <select class="f-select" id="leave-div" required>
+                    <option value="">選択してください</option>
+                    <option>収束部門</option><option>支援部門</option>
+                    <option>工作部門</option><option>外縁部門</option><option>港湾部門</option>
+                  </select>
+                </div>
+                <div class="f-field">
+                  <label class="f-label req">休暇種別</label>
+                  <select class="f-select" required>
+                    <option>年次有給休暇</option><option>特別休暇</option>
+                    <option>療養休暇</option><option>心的外傷後休暇</option>
+                  </select>
+                </div>
+                <div class="f-field">
+                  <label class="f-label req">開始日</label>
+                  <input class="f-input" type="date" required>
+                </div>
+                <div class="f-field">
+                  <label class="f-label req">終了日</label>
+                  <input class="f-input" type="date" required>
+                </div>
+                <div class="f-field f-full">
+                  <label class="f-label">申請理由</label>
+                  <textarea class="f-textarea" placeholder="任意。心的外傷後休暇の場合は支援部門の診断書を添付してください。"></textarea>
+                </div>
+              </div>
+              <div class="f-checkbox-row" style="margin-top:.5rem;">
+                <input type="checkbox" id="leave-confirm" required>
+                <label for="leave-confirm">申請期間中に緊急召集が発令された場合、業務に復帰することに同意します</label>
+              </div>
+            </div>
+            <button type="submit" class="f-submit">▶ 申請を提出する</button>
+          </form>
+        </div>
+
+        <!-- ② 装備申請 -->
+        <div class="form-panel" id="panel-equipment">
+          <div class="f-info-box">
+            <div class="f-info-label">// 注意事項</div>
+            AAA資格が必要なモジュールは資格証明書の添付が必要です。緊急時は口頭承認後に書面申請も可能です。
+          </div>
+          <form onsubmit="submitForm(event,'equipment','装備申請')">
+            <div class="f-grid">
+              <div class="f-field">
+                <label class="f-label req">氏名</label>
+                <input class="f-input" id="eq-name" required placeholder="田中 一郎">
+              </div>
+              <div class="f-field">
+                <label class="f-label req">所属部門</label>
+                <select class="f-select" required>
+                  <option value="">選択してください</option>
+                  <option>収束部門</option><option>支援部門</option>
+                  <option>工作部門</option><option>外縁部門</option><option>港湾部門</option>
+                </select>
+              </div>
+              <div class="f-field">
+                <label class="f-label req">申請モジュール</label>
+                <select class="f-select" id="eq-module" required>
+                  <option value="">選択してください</option>
+                  <option>M-001-α 空間固定装置</option>
+                  <option>M-003-β 次元波動センサー</option>
+                  <option>M-006-γ 高照度指向性光源</option>
+                  <option>M-011-α 記憶保護フィルム</option>
+                  <option>M-015-β 概念遮断フィールド</option>
+                  <option>M-019-α 概念固定アンカー</option>
+                  <option>その他（備考に記入）</option>
+                </select>
+              </div>
+              <div class="f-field">
+                <label class="f-label req">使用目的</label>
+                <select class="f-select" required>
+                  <option>事案対応</option><option>訓練</option>
+                  <option>研究目的</option><option>緊急対応</option>
+                </select>
+              </div>
+              <div class="f-field">
+                <label class="f-label req">使用予定日</label>
+                <input class="f-input" type="date" required>
+              </div>
+              <div class="f-field">
+                <label class="f-label">関連事案ID</label>
+                <input class="f-input" placeholder="例：CASE-2026-0214">
+              </div>
+              <div class="f-field f-full">
+                <label class="f-label req">使用状況の詳細</label>
+                <textarea class="f-textarea" required placeholder="使用場所・対象実体・想定される収束手順を記述してください"></textarea>
+              </div>
+            </div>
+            <button type="submit" class="f-submit">▶ 申請を提出する</button>
+          </form>
+        </div>
+
+        <!-- ③ 昇格推薦 -->
+        <div class="form-panel" id="panel-promotion">
+          <div class="f-info-box">
+            <div class="f-info-label">// 注意事項</div>
+            推薦者は推薦対象者より上位のランクである必要があります。LEVEL 5への推薦は機関長の承認が必要です。
+          </div>
+          <form onsubmit="submitForm(event,'promotion','昇格推薦')">
+            <div class="f-section">
+              <div class="f-section-title">推薦者情報</div>
+              <div class="f-grid">
+                <div class="f-field">
+                  <label class="f-label req">推薦者氏名</label>
+                  <input class="f-input" required placeholder="山田 花子">
+                </div>
+                <div class="f-field">
+                  <label class="f-label req">現在のランク</label>
+                  <select class="f-select" required>
+                    <option>LEVEL 2</option><option>LEVEL 3</option>
+                    <option>LEVEL 4</option><option>LEVEL 5</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div class="f-section">
+              <div class="f-section-title">推薦対象者情報</div>
+              <div class="f-grid">
+                <div class="f-field">
+                  <label class="f-label req">対象者氏名</label>
+                  <input class="f-input" required placeholder="田中 一郎">
+                </div>
+                <div class="f-field">
+                  <label class="f-label req">現在のランク</label>
+                  <select class="f-select" required>
+                    <option>LEVEL 1</option><option>LEVEL 2</option>
+                    <option>LEVEL 3</option><option>LEVEL 4</option>
+                  </select>
+                </div>
+                <div class="f-field">
+                  <label class="f-label req">推薦後のランク</label>
+                  <select class="f-select" required>
+                    <option>LEVEL 2</option><option>LEVEL 3</option>
+                    <option>LEVEL 4</option><option>LEVEL 5</option>
+                  </select>
+                </div>
+                <div class="f-field">
+                  <label class="f-label req">在職期間</label>
+                  <input class="f-input" placeholder="例：2年3ヶ月">
+                </div>
+                <div class="f-field f-full">
+                  <label class="f-label req">推薦理由・業績</label>
+                  <textarea class="f-textarea" style="min-height:120px;" required placeholder="対象者の特筆すべき業績・能力・事案対応実績を具体的に記述してください"></textarea>
+                </div>
+                <div class="f-field f-full">
+                  <label class="f-label">懸念事項（任意）</label>
+                  <textarea class="f-textarea" placeholder="昇格後の課題・注意すべき点があれば記述してください"></textarea>
+                </div>
+              </div>
+            </div>
+            <button type="submit" class="f-submit">▶ 推薦書を提出する</button>
+          </form>
+        </div>
+
+        <!-- ④ 個人異常報告 -->
+        <div class="form-panel" id="panel-anomaly">
+          <div class="f-info-box" style="border-color:rgba(239,68,68,.2);background:rgba(239,68,68,.04);">
+            <div class="f-info-label" style="color:#ef4444;">// 重要</div>
+            海蝕実体との接触後に認識・記憶・感覚の異常を感じた場合は、48時間以内に報告してください。
+            提出された報告は支援部門が機密扱いで管理します。
+          </div>
+          <form onsubmit="submitForm(event,'anomaly','個人異常報告')">
+            <div class="f-grid">
+              <div class="f-field">
+                <label class="f-label req">氏名</label>
+                <input class="f-input" id="anom-name" required>
+              </div>
+              <div class="f-field">
+                <label class="f-label req">職員ID</label>
+                <input class="f-input" required>
+              </div>
+              <div class="f-field">
+                <label class="f-label req">症状発現日時</label>
+                <input class="f-input" type="datetime-local" required>
+              </div>
+              <div class="f-field">
+                <label class="f-label">直近の接触事案ID</label>
+                <input class="f-input" placeholder="例：CASE-2026-0214">
+              </div>
+            </div>
+            <div class="f-field" style="margin-top:.5rem;">
+              <label class="f-label req">該当する症状（複数選択可）</label>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem;margin-top:.35rem;">
+                <div class="f-checkbox-row"><input type="checkbox"><label style="cursor:pointer;font-size:.8rem;">記憶の欠落・断片化</label></div>
+                <div class="f-checkbox-row"><input type="checkbox"><label style="cursor:pointer;font-size:.8rem;">実体の声・音声の残存</label></div>
+                <div class="f-checkbox-row"><input type="checkbox"><label style="cursor:pointer;font-size:.8rem;">視覚的残像・幻覚</label></div>
+                <div class="f-checkbox-row"><input type="checkbox"><label style="cursor:pointer;font-size:.8rem;">現実感の喪失（離人感）</label></div>
+                <div class="f-checkbox-row"><input type="checkbox"><label style="cursor:pointer;font-size:.8rem;">睡眠障害・反復夢</label></div>
+                <div class="f-checkbox-row"><input type="checkbox"><label style="cursor:pointer;font-size:.8rem;">感覚過敏・感覚鈍麻</label></div>
+                <div class="f-checkbox-row" style="grid-column:span 2;"><input type="checkbox"><label style="cursor:pointer;font-size:.8rem;">その他（下記に記述）</label></div>
+              </div>
+            </div>
+            <div class="f-field">
+              <label class="f-label req">詳細な状況説明</label>
+              <textarea class="f-textarea" style="min-height:100px;" required placeholder="症状の具体的な内容・頻度・日常業務への影響を記述してください"></textarea>
+            </div>
+            <!-- ARG仕掛け: 秘密の質問 -->
+            <div class="skill-challenge">
+              <div class="sc-label">// セキュリティ確認 — 以下の質問に答えてください</div>
+              <p style="font-size:.8rem;color:rgba(255,255,255,.5);margin-bottom:.75rem;">「海は何をしている？」</p>
+              <input class="sc-input" id="sc-answer" placeholder="..." oninput="checkAnswer(this.value)">
+              <div class="sc-hint" id="sc-hint">ヒント: 機関名の由来を考えてください</div>
+            </div>
+            <button type="submit" class="f-submit" id="anomaly-submit">▶ 報告書を提出する</button>
+          </form>
+        </div>
+
+        <!-- ⑤ 機密情報開示申請 -->
+        <div class="form-panel" id="panel-classified">
+          <div class="f-info-box" style="border-color:rgba(255,215,64,.2);background:rgba(255,215,64,.03);">
+            <div class="f-info-label" style="color:#ffd740;">// 最高機密</div>
+            機密情報の開示申請は厳格な審査が行われます。虚偽の申請は規律委員会に付託されます。
+            申請後、通常3〜10営業日で審査結果が通知されます。
+          </div>
+          <form onsubmit="submitForm(event,'classified','機密情報開示申請')">
+            <div class="f-grid">
+              <div class="f-field">
+                <label class="f-label req">申請者氏名</label>
+                <input class="f-input" required>
+              </div>
+              <div class="f-field">
+                <label class="f-label req">現在のクリアランスレベル</label>
+                <select class="f-select" required>
+                  <option>LEVEL 1</option><option>LEVEL 2</option>
+                  <option>LEVEL 3</option><option>LEVEL 4</option>
+                </select>
+              </div>
+              <div class="f-field">
+                <label class="f-label req">申請する情報カテゴリ</label>
+                <select class="f-select" required>
+                  <option>桜川事件（1984年）関連記録</option>
+                  <option>Y2K次元共鳴事案（1999年）詳細</option>
+                  <option>概念捕食者・行動パターン完全版</option>
+                  <option>封印計画 フェーズ2以降</option>
+                  <option>機関長室内部通達</option>
+                  <option>観測者との接触記録</option>
+                </select>
+              </div>
+              <div class="f-field">
+                <label class="f-label req">申請目的</label>
+                <select class="f-select" required>
+                  <option>事案対応のため</option><option>研究目的</option>
+                  <option>上位機関への報告のため</option><option>その他</option>
+                </select>
+              </div>
+              <div class="f-field f-full">
+                <label class="f-label req">開示が必要な具体的理由</label>
+                <textarea class="f-textarea" style="min-height:100px;" required placeholder="なぜこの情報が現在の業務に必要か、具体的に説明してください"></textarea>
+              </div>
+              <div class="f-field f-full">
+                <label class="f-label req">推薦上長の氏名</label>
+                <input class="f-input" required placeholder="上長の名前">
+              </div>
+            </div>
+            <div class="f-checkbox-row" style="margin-bottom:1.25rem;">
+              <input type="checkbox" id="cl-agree" required>
+              <label for="cl-agree">取得した機密情報を業務目的以外に使用しないこと、及び情報漏洩が発生した場合は即座に機関長室へ報告することに同意します</label>
+            </div>
+            <button type="submit" class="f-submit">▶ 申請書を提出する</button>
+          </form>
+        </div>
+
+        <!-- 申請履歴 -->
+        <div class="receipts-list">
+          <div class="receipts-title">// 申請履歴</div>
+          <div id="receipts-container">
+            <div style="color:var(--muted-foreground);font-family:'JetBrains Mono',monospace;font-size:.78rem;text-align:center;padding:2rem;">
+              申請履歴はありません
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="./js/core/error-handler.js" defer></script>
+  <script src="./js/data/data-bundle.js" defer></script>
+  <script src="./js/core/loading.js" defer></script>
+  <script src="./js/core/sidebar.js" defer></script>
+  <script src="./js/core/bookmark.js" defer></script>
+  <script src="./js/core/main.js" defer></script>
+  <script src="./js/core/modal.js" defer></script>
+  <script src="./js/core/progress.js" defer></script>
+  <script src="./js/core/story-engine.js" defer></script>
+  <script src="./js/core/notifications.js" defer></script>
+  
+  <script>
+    if (!ProgressSystem.checkPageAccess('forms.html')) {
+      ModalSystem.warning('このページにアクセスするには LEVEL 1 が必要です。','ACCESS DENIED')
+        .then(function(){ Router.navigate('#/dashboard'); });
+    }
+
+    var FORMS_KEY = 'kaishoku_forms';
+    var TYPE_META = {
+      leave:     { label:'休暇申請',     color:'#3b82f6' },
+      equipment: { label:'装備申請',     color:'#8b5cf6' },
+      promotion: { label:'昇格推薦',     color:'#f59e0b' },
+      anomaly:   { label:'個人異常報告', color:'#ef4444' },
+      classified:{ label:'機密開示申請', color:'#ffd740' },
+    };
+
+    // Tab switch
+    window.switchForm = function(id, btn) {
+      document.querySelectorAll('.forms-tab').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('.form-panel').forEach(function(p){ p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById('panel-' + id).classList.add('active');
+    };
+
+    // ARG answer check
+    window.checkAnswer = function(val) {
+      var answers = ['削れている','削れてる','けずれている'];
+      var hint = document.getElementById('sc-hint');
+      if (answers.some(function(a){ return val.toLowerCase().includes(a); })) {
+        hint.textContent = '';
+        hint.innerHTML = '<span class="sc-correct">✓ 正しい認識です。海蝕機関へようこそ。</span>';
+        ProgressSystem.trackActivity('chat_message');
+      }
+    };
+
+    // Submit
+    window.submitForm = function(e, type, label) {
+      e.preventDefault();
+      var user = ProgressSystem.getUserData();
+      var forms = JSON.parse(localStorage.getItem(FORMS_KEY) || '[]');
+      var entry = {
+        id: 'FORM-' + Date.now(),
+        type: type,
+        label: label,
+        submitter: user ? user.name : '匿名',
+        timestamp: new Date().toISOString(),
+        status: '審査中',
+      };
+      forms.unshift(entry);
+      if (forms.length > 20) forms.pop();
+      localStorage.setItem(FORMS_KEY, JSON.stringify(forms));
+
+      ModalSystem.success(
+        label + 'を受理しました。<br><br>受付番号: ' + entry.id + '<br>担当部門に転送されます。',
+        '申請受理'
+      );
+      ProgressSystem.trackActivity('chat_message');
+      e.target.reset();
+      renderReceipts();
+    };
+
+    // Render receipts
+    function renderReceipts() {
+      var forms = JSON.parse(localStorage.getItem(FORMS_KEY) || '[]');
+      var el = document.getElementById('receipts-container');
+      if (!forms.length) {
+        el.innerHTML = '<div style="color:var(--muted-foreground);font-family:\'JetBrains Mono\',monospace;font-size:.78rem;text-align:center;padding:2rem;">申請履歴はありません</div>';
+        return;
+      }
+      el.innerHTML = forms.map(function(f) {
+        var meta = TYPE_META[f.type] || { label: f.label, color: 'var(--primary)' };
+        var dt = new Date(f.timestamp).toLocaleString('ja-JP');
+        return '<div class="receipt-item" style="--rc:' + meta.color + '">' +
+          '<div class="receipt-badge">' + meta.label + '</div>' +
+          '<div class="receipt-body">' +
+          '<div class="receipt-title">' + f.id + '</div>' +
+          '<div class="receipt-meta">' + f.submitter + ' / ' + dt + '</div>' +
+          '</div>' +
+          '<div class="receipt-status">審査中</div>' +
+          '</div>';
+      }).join('');
+    }
+
+    // pre-fill name
+    (function() {
+      var user = ProgressSystem.getUserData();
+      if (!user) return;
+      var nameFields = ['leave-name', 'anom-name', 'eq-name'];
+      nameFields.forEach(function(id) {
+        var el = document.getElementById(id);
+        if (el && user.name) el.value = user.name;
+      });
+      var idField = document.getElementById('leave-id');
+      if (idField && user.id) idField.value = user.id;
+    })();
+
+    renderReceipts();
+  </script>
+</body>
+</html>

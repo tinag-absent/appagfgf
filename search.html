@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title>統合データベース検索 - 海蝕機関</title>
+  <link rel="icon" type="image/png" href="./images/favicon.png">
+  <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/sidebar.css">
+  <link rel="stylesheet" href="./css/mobile.css">
+  <style>
+    /* ─── Search Bar ─────────────────────────────── */
+    .id-search-wrap { display:flex; gap:1rem; margin-bottom:0.75rem; }
+    .id-search-input {
+      flex:1; padding:0.875rem 1.25rem;
+      background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.15); border-left:3px solid var(--primary);
+      color:var(--foreground); font-family:'JetBrains Mono',monospace; font-size:1rem; letter-spacing:0.05em;
+      transition:border-color 0.3s,box-shadow 0.3s;
+    }
+    .id-search-input:focus { outline:none; border-color:var(--primary); box-shadow:0 0 0 2px rgba(0,255,255,0.12); }
+    .id-search-input::placeholder { color:rgba(255,255,255,0.25); font-size:0.82rem; }
+    .id-search-input.error { border-left-color:var(--destructive); animation:shake 0.3s ease; }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-4px)} 75%{transform:translateX(4px)} }
+    .id-search-btn {
+      padding:0.875rem 2rem; background:var(--primary); color:var(--primary-foreground); border:none; cursor:pointer;
+      font-family:'JetBrains Mono',monospace; font-weight:700; font-size:0.875rem; letter-spacing:0.1em; text-transform:uppercase; transition:opacity 0.2s;
+    }
+    .id-search-btn:hover { opacity:0.8; }
+
+
+    /* ─── History ────────────────────────────────── */
+    .history-bar { display:flex; align-items:center; gap:0.5rem; flex-wrap:wrap; margin-bottom:1.5rem; min-height:1.5rem; }
+    .history-label { font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:rgba(255,255,255,0.3); text-transform:uppercase; white-space:nowrap; }
+    .history-chip {
+      padding:0.2rem 0.65rem; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1);
+      color:rgba(255,255,255,0.45); cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:0.65rem;
+      transition:all 0.2s; display:flex; align-items:center; gap:0.35rem;
+    }
+    .history-chip:hover { border-color:var(--primary); color:var(--primary); background:rgba(0,255,255,0.06); }
+    .chip-del { opacity:0.4; font-size:0.6rem; }
+    .history-chip:hover .chip-del { opacity:0.8; }
+    .history-clear {
+      margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:0.6rem; color:rgba(255,255,255,0.2);
+      cursor:pointer; background:none; border:none; text-transform:uppercase; transition:color 0.2s;
+    }
+    .history-clear:hover { color:var(--destructive); }
+
+    /* ─── View Toggle ────────────────────────────── */
+    .view-toggle-bar { display:flex; gap:0.5rem; margin-bottom:1.5rem; }
+    .view-btn {
+      padding:0.45rem 1.1rem; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1);
+      color:var(--muted-foreground); cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:0.75rem;
+      text-transform:uppercase; transition:all 0.2s; display:flex; align-items:center; gap:0.4rem;
+    }
+    .view-btn.active { border-color:var(--primary); color:var(--primary); background:rgba(0,255,255,0.08); }
+    .bm-count { background:rgba(0,255,255,0.15); border-radius:9999px; padding:0 0.4rem; font-size:0.6rem; color:var(--primary); }
+
+    /* ─── Type Filter ────────────────────────────── */
+    .type-filter-bar { display:flex; gap:0.5rem; margin-bottom:1.25rem; flex-wrap:wrap; }
+    .type-btn {
+      padding:0.5rem 1.1rem; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.12);
+      color:var(--muted-foreground); cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:0.75rem;
+      text-transform:uppercase; letter-spacing:0.05em; transition:all 0.2s;
+    }
+    .type-btn:hover,.type-btn.active { border-color:var(--primary); color:var(--primary); background:rgba(0,255,255,0.08); }
+    .cnt { display:inline-block; margin-left:0.4rem; padding:0 0.35rem; background:rgba(0,255,255,0.12); border-radius:9999px; font-size:0.6rem; color:var(--primary); }
+
+    /* ─── Sub-filters ────────────────────────────── */
+    .sub-filter-section {
+      display:none; gap:1rem; margin-bottom:1.5rem; padding:1.1rem 1.25rem;
+      background:rgba(0,0,0,0.22); border:1px solid rgba(255,255,255,0.07); flex-wrap:wrap; align-items:flex-end;
+    }
+    .sub-filter-section.visible { display:flex; }
+    .filter-group { display:flex; flex-direction:column; gap:0.4rem; }
+    .filter-label { font-family:'JetBrains Mono',monospace; font-size:0.68rem; color:var(--primary); text-transform:uppercase; }
+    .filter-select { padding:0.4rem 0.75rem; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); color:var(--foreground); font-family:'Inter',sans-serif; font-size:0.82rem; min-width:120px; }
+    .class-filter-bar { display:flex; gap:0.4rem; flex-wrap:wrap; }
+    .class-btn {
+      padding:0.35rem 0.85rem; background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1);
+      color:var(--muted-foreground); cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:0.68rem; text-transform:uppercase; transition:all 0.2s;
+    }
+    .class-btn.active,.class-btn:hover { border-color:var(--primary); color:var(--primary); background:rgba(0,255,255,0.07); }
+
+    /* ─── Result Count ───────────────────────────── */
+    .result-count-bar {
+      font-family:'JetBrains Mono',monospace; font-size:0.78rem; color:var(--muted-foreground);
+      margin-bottom:1.25rem; display:flex; align-items:center; gap:0.75rem;
+    }
+    .result-count-bar .num { color:var(--primary); font-weight:700; }
+    .result-count-bar .qry { color:rgba(255,255,255,0.3); font-size:0.7rem; }
+
+    /* ─── Grid & Cards ───────────────────────────── */
+    .results-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:1.1rem; }
+    .result-card {
+      background:linear-gradient(135deg,rgba(26,39,56,0.45),rgba(15,23,42,0.45));
+      border:1px solid rgba(255,255,255,0.1); cursor:pointer; transition:all 0.25s; position:relative; overflow:hidden;
+    }
+    .result-card:hover { border-color:var(--primary); box-shadow:0 0 16px rgba(0,255,255,0.15); transform:translateY(-2px); }
+    .card-type-stripe { height:3px; width:100%; }
+    .stripe-mission  { background:var(--destructive); }
+    .stripe-entity   { background:rgb(139,92,246); }
+    .stripe-module   { background:var(--primary); }
+    .stripe-personnel{ background:rgb(245,158,11); }
+    .stripe-location { background:rgb(16,185,129); }
+    .card-body { padding:1.1rem 1.25rem 0.9rem; }
+    .card-meta { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.6rem; gap:0.5rem; }
+    .card-id { font-family:'JetBrains Mono',monospace; font-size:0.7rem; color:var(--muted-foreground); }
+    .card-badges { display:flex; gap:0.35rem; flex-wrap:wrap; align-items:center; }
+    .badge { padding:0.18rem 0.55rem; font-size:0.62rem; font-family:'JetBrains Mono',monospace; text-transform:uppercase; border:1px solid; white-space:nowrap; }
+    .badge-type-mission  { border-color:var(--destructive); color:var(--destructive); background:rgba(239,68,68,0.08); }
+    .badge-type-entity   { border-color:rgb(139,92,246); color:rgb(139,92,246); background:rgba(139,92,246,0.08); }
+    .badge-type-module   { border-color:var(--primary); color:var(--primary); background:rgba(0,255,255,0.08); }
+    .badge-type-personnel{ border-color:rgb(245,158,11); color:rgb(245,158,11); background:rgba(245,158,11,0.08); }
+    .badge-type-location { border-color:rgb(16,185,129); color:rgb(16,185,129); background:rgba(16,185,129,0.08); }
+    .badge-safe      { border-color:rgb(16,185,129); color:rgb(16,185,129); background:rgba(16,185,129,0.08); }
+    .badge-caution   { border-color:rgb(245,158,11); color:rgb(245,158,11); background:rgba(245,158,11,0.08); }
+    .badge-danger,.badge-critical { border-color:var(--destructive); color:var(--destructive); background:rgba(239,68,68,0.08); }
+    .badge-classified { border-color:rgb(139,92,246); color:rgb(139,92,246); background:rgba(139,92,246,0.08); }
+    .badge-active    { border-color:var(--destructive); color:var(--destructive); background:rgba(239,68,68,0.08); }
+    .badge-completed { border-color:rgb(16,185,129); color:rgb(16,185,129); background:rgba(16,185,129,0.08); }
+    .badge-warning   { border-color:rgb(245,158,11); color:rgb(245,158,11); background:rgba(245,158,11,0.08); }
+    .badge-monitoring{ border-color:rgb(245,158,11); color:rgb(245,158,11); background:rgba(245,158,11,0.08); }
+    .badge-failed    { border-color:rgb(107,114,128); color:rgb(107,114,128); background:rgba(107,114,128,0.08); }
+    .card-name { font-size:1rem; font-weight:600; color:white; margin-bottom:0.4rem; line-height:1.35; }
+    .card-desc { font-size:0.78rem; color:var(--muted-foreground); line-height:1.6; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+    .card-footer {
+      padding:0.6rem 1.25rem; border-top:1px solid rgba(255,255,255,0.07);
+      font-family:'JetBrains Mono',monospace; font-size:0.65rem; color:var(--muted-foreground);
+      background:rgba(0,0,0,0.15); display:flex; justify-content:space-between; align-items:center;
+    }
+    .card-footer-text { flex:1; }
+
+    /* ─── Bookmark Star ──────────────────────────── */
+    .bm-star {
+      background:none; border:none; cursor:pointer; color:rgba(255,255,255,0.2); font-size:1rem;
+      padding:0.1rem 0.2rem; transition:color 0.2s,transform 0.15s; line-height:1; flex-shrink:0;
+    }
+    .bm-star:hover { color:rgb(245,158,11); transform:scale(1.2); }
+    .bm-star.saved { color:rgb(245,158,11); }
+
+    /* ─── Personnel Locked ───────────────────────── */
+    .locked-overlay {
+      position:absolute; inset:0; background:rgba(0,0,0,0.78);
+      display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0.5rem;
+      font-family:'JetBrains Mono',monospace; color:var(--muted-foreground); font-size:0.75rem; text-align:center; padding:1rem;
+    }
+    .locked-overlay svg { opacity:0.4; }
+
+    /* ─── Stats ──────────────────────────────────── */
+    .stats-row { display:grid; grid-template-columns:repeat(auto-fit,minmax(100px,1fr)); gap:1rem; margin-bottom:2rem; }
+    .stat-card { background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.08); padding:0.85rem 1rem; text-align:center; }
+    .stat-number { font-size:1.6rem; font-family:'Space Grotesk',sans-serif; font-weight:700; color:var(--primary); margin-bottom:0.25rem; }
+    .stat-label { font-family:'JetBrains Mono',monospace; font-size:0.6rem; color:var(--muted-foreground); text-transform:uppercase; }
+
+    /* ─── State Messages ─────────────────────────── */
+    .state-message { grid-column:1/-1; text-align:center; padding:5rem 2rem; color:var(--muted-foreground); }
+    .state-message svg { margin:0 auto 1.25rem; opacity:0.2; display:block; }
+    .state-message p { font-family:'JetBrains Mono',monospace; font-size:0.875rem; }
+    .state-message .hint { font-size:0.72rem; margin-top:0.5rem; opacity:0.55; }
+    .bm-empty { text-align:center; padding:3rem; color:var(--muted-foreground); font-family:'JetBrains Mono',monospace; font-size:0.8rem; }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar"></aside>
+    <button class="mobile-menu-toggle">
+      <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+    <div class="mobile-menu-overlay"></div>
+
+    <main class="main-content scanline">
+      <div class="container">
+        <div class="space-y-12 animate-fadeIn">
+
+          <!-- Header -->
+          <div class="space-y-4" style="border-left:4px solid var(--primary);padding-left:1rem;">
+            <h1 style="font-size:2.5rem;font-family:'Space Grotesk',sans-serif;font-weight:700;color:white;text-transform:uppercase;">
+              統合データベース検索
+            </h1>
+            <p class="font-mono text-muted" style="font-size:0.875rem;">
+              UNIFIED ARCHIVE SEARCH — 収束案件 / 実体 / モジュール / 人員 / 場所
+            </p>
+          </div>
+
+          <!-- Stats -->
+          <div class="stats-row">
+            <div class="stat-card"><div class="stat-number" id="statTotal">—</div><div class="stat-label">総レコード数</div></div>
+            <div class="stat-card"><div class="stat-number" style="color:var(--destructive);" id="statMissions">—</div><div class="stat-label">収束案件</div></div>
+            <div class="stat-card"><div class="stat-number" style="color:rgb(139,92,246);" id="statEntities">—</div><div class="stat-label">海蝕実体</div></div>
+            <div class="stat-card"><div class="stat-number" style="color:var(--primary);" id="statModules">—</div><div class="stat-label">モジュール</div></div>
+            <div class="stat-card"><div class="stat-number" style="color:rgb(245,158,11);" id="statPersonnel">—</div><div class="stat-label">人員</div></div>
+            <div class="stat-card"><div class="stat-number" style="color:rgb(16,185,129);" id="statLocations">—</div><div class="stat-label">場所</div></div>
+          </div>
+
+          <!-- ID Search -->
+          <div>
+            <div class="id-search-wrap">
+              <input type="text" id="idSearchInput" class="id-search-input"
+                placeholder="IDを入力（例: MISSION-2026 / E-001 / mod-001 / K-001 / loc-001）">
+              <button class="id-search-btn" id="searchBtn">検索</button>
+            </div>
+</div>
+
+          <!-- History -->
+          <div class="history-bar" id="historyBar"></div>
+
+          <!-- View Toggle -->
+          <div class="view-toggle-bar">
+            <button class="view-btn active" id="viewSearchBtn">
+              <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
+              </svg>
+              検索結果
+            </button>
+            <button class="view-btn" id="viewBookmarkBtn">
+              ★ ブックマーク <span class="bm-count" id="bmCountBadge">0</span>
+            </button>
+          </div>
+
+          <!-- ── Search Panel ── -->
+          <div id="searchPanel">
+            <div class="type-filter-bar">
+              <button class="type-btn active" data-type="all">全て<span class="cnt" id="cntAll">0</span></button>
+              <button class="type-btn" data-type="mission">収束案件<span class="cnt" id="cntMission">0</span></button>
+              <button class="type-btn" data-type="entity">海蝕実体<span class="cnt" id="cntEntity">0</span></button>
+              <button class="type-btn" data-type="module">モジュール<span class="cnt" id="cntModule">0</span></button>
+              <button class="type-btn" data-type="personnel">人員<span class="cnt" id="cntPersonnel">0</span></button>
+              <button class="type-btn" data-type="location">場所<span class="cnt" id="cntLocation">0</span></button>
+            </div>
+
+            <!-- Sub-filter: Mission -->
+            <div class="sub-filter-section" id="subfilterMission">
+              <div class="filter-group">
+                <label class="filter-label">ステータス</label>
+                <select id="missionStatus" class="filter-select">
+                  <option value="all">全て</option>
+                  <option value="active">対応中</option>
+                  <option value="monitoring">監視中</option>
+                  <option value="completed">収束済み</option>
+                  <option value="failed">失敗</option>
+                </select>
+              </div>
+              <div class="filter-group">
+                <label class="filter-label">重要度</label>
+                <select id="missionPriority" class="filter-select">
+                  <option value="all">全て</option>
+                  <option value="critical">重大</option>
+                  <option value="warning">警戒</option>
+                  <option value="safe">観察</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Sub-filter: Classification -->
+            <div class="sub-filter-section" id="subfilterClass">
+              <div class="filter-group">
+                <label class="filter-label">分類</label>
+                <div class="class-filter-bar">
+                  <button class="class-btn active" data-class="all">全て</button>
+                  <button class="class-btn" data-class="safe">SAFE</button>
+                  <button class="class-btn" data-class="caution">CAUTION</button>
+                  <button class="class-btn" data-class="danger">DANGER</button>
+                  <button class="class-btn" data-class="classified">CLASSIFIED</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Sub-filter: Personnel -->
+            <div class="sub-filter-section" id="subfilterPersonnel">
+              <div class="filter-group">
+                <label class="filter-label">部門</label>
+                <select id="personnelDivision" class="filter-select">
+                  <option value="all">全て</option>
+                  <option value="収束部門">収束部門</option>
+                  <option value="支援部門">支援部門</option>
+                  <option value="工作部門">工作部門</option>
+                  <option value="対外部門">対外部門</option>
+                  <option value="港湾部門">港湾部門</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="result-count-bar">
+              <span class="num" id="resultCount">0</span> 件ヒット
+              <span class="qry" id="searchQueryDisplay"></span>
+            </div>
+
+            <div class="results-grid" id="resultsGrid">
+              <div class="state-message">
+                <svg width="52" height="52" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
+                </svg>
+                <p>IDを入力して検索してください</p>
+                <p class="hint">収束案件 / 実体 / モジュール / 人員 / 場所 を横断検索</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── Bookmark Panel ── -->
+          <div id="bookmarkPanel" style="display:none;">
+            <div class="result-count-bar">
+              ブックマーク済み: <span class="num" id="bmTotalCount">0</span> 件
+            </div>
+            <div class="results-grid" id="bookmarkGrid">
+              <div class="bm-empty">まだブックマークがありません<br><span style="font-size:0.65rem;opacity:0.5;">各カードの ☆ をクリックして保存できます</span></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="./js/core/error-handler.js" defer></script>
+  <script src="./js/data/data-bundle.js" defer></script>
+
+  <script src="./js/core/loading.js" defer></script>
+  <script src="./js/core/sidebar.js" defer></script>
+  <script src="./js/core/bookmark.js" defer></script>
+  <script src="./js/core/main.js" defer></script>
+  <script src="./js/core/story-engine.js" defer></script>
+  <script src="./js/core/notifications.js" defer></script>
+  <script src="./js/core/modal.js" defer></script>
+  <script src="./js/core/progress.js" defer></script>
+  <script src="./js/core/level-messages.js" defer></script>
+  <script src="./js/core/daily-login.js" defer></script>
+  <script src="./js/data/mission-data.js" defer></script>
+  <script src="./js/data/catalog-data.js" defer></script>
+  <script src="./js/data/personnel-database.js" defer></script>
+  <script>
+    var _dataReady = Promise.all([
+      window.CatalogData.whenReady(),
+      window.MissionData.whenReady(),
+      window.PersonnelDatabase.whenReady()
+    ]);
+
+    var HISTORY_KEY  = 'kaishoku_search_history';
+    var BOOKMARK_KEY = 'kaishoku_bookmarks';
+    var MAX_HISTORY  = 10;
+
+    var STATUS_LABEL   = { active:'\u5bfe\u5fdc\u4e2d', monitoring:'\u76e3\u8996\u4e2d', completed:'\u53ce\u675f\u6e08\u307f', failed:'\u5931\u6557' };
+    var PRIORITY_LABEL = { critical:'\u91cd\u5927', warning:'\u8b66\u6212', safe:'\u89b3\u5bdf' };
+    var CLASS_LABEL    = { safe:'SAFE', caution:'CAUTION', danger:'DANGER', classified:'CLASSIFIED' };
+    var LOC_TYPE_LABEL = { headquarters:'\u672c\u90e8', 'dimensional-gate':'\u6b21\u5143\u30b2\u30fc\u30c8', 'monitoring-station':'\u76e3\u8996\u30b9\u30c6\u30fc\u30b7\u30e7\u30f3', 'research-facility':'\u7814\u7a76\u65bd\u8a2d' };
+
+    var _state = {
+      query: '', mode: 'exact', type: 'all',
+      missionStatus: 'all', missionPriority: 'all',
+      classFilter: 'all', personnelDivision: 'all',
+      view: 'search', hasSearched: false
+    };
+
+    function esc(s) {
+      return String(s)
+        .split('&').join('&amp;')
+        .split('<').join('&lt;')
+        .split('>').join('&gt;')
+        .split('"').join('&quot;');
+    }
+
+    function loadHistory()   { try { return JSON.parse(localStorage.getItem(HISTORY_KEY))  || []; } catch(e) { return []; } }
+    function loadBookmarks() { try { return JSON.parse(localStorage.getItem(BOOKMARK_KEY)) || []; } catch(e) { return []; } }
+    function saveHistory(arr) { localStorage.setItem(HISTORY_KEY, JSON.stringify(arr)); }
+    function isBookmarked(type, id) { return loadBookmarks().some(function(b){ return b._type === type && b.id === id; }); }
+
+    function addHistory(q) {
+      if (!q) return;
+      var h = loadHistory().filter(function(x){ return x !== q; });
+      h.unshift(q);
+      if (h.length > MAX_HISTORY) h = h.slice(0, MAX_HISTORY);
+      saveHistory(h);
+      renderHistory();
+    }
+
+    function toggleBookmark(type, id, name) {
+      var bms = loadBookmarks();
+      var idx = bms.findIndex(function(b){ return b._type === type && b.id === id; });
+      if (idx >= 0) bms.splice(idx, 1);
+      else bms.unshift({ _type: type, id: id, name: name, savedAt: Date.now() });
+      localStorage.setItem(BOOKMARK_KEY, JSON.stringify(bms));
+      updateBmBadge();
+      var saved = isBookmarked(type, id);
+      document.querySelectorAll('.bm-star[data-bm-type]').forEach(function(el) {
+        if (el.getAttribute('data-bm-type') === type && el.getAttribute('data-bm-id') === id) {
+          el.className = 'bm-star' + (saved ? ' saved' : '');
+          el.textContent = saved ? '\u2605' : '\u2606';
+          el.title = saved ? '\u30d6\u30c3\u30af\u30de\u30fc\u30af\u89e3\u9664' : '\u30d6\u30c3\u30af\u30de\u30fc\u30af';
+        }
+      });
+      if (_state.view === 'bookmark') renderBookmarks();
+    }
+
+    function updateBmBadge() {
+      var c = loadBookmarks().length;
+      document.getElementById('bmCountBadge').textContent = c;
+      document.getElementById('bmTotalCount').textContent = c;
+    }
+
+    function matchId(value, q) {
+      if (!q) return false;
+      return (value || '').toLowerCase() === q.toLowerCase();
+    }
+
+    function getFiltered() {
+      var q  = _state.query.trim();
+      if (!q) return { missions:[], entities:[], modules:[], personnel:[], locations:[], combined:[] };
+
+      var missions  = window.MissionData.missions.filter(function(m){ return matchId(m.id, q); });
+      var entities  = window.CatalogData.entities.filter(function(e){ return matchId(e.id, q) || matchId(e.code, q); });
+      var modules   = window.CatalogData.modules.filter(function(m){ return matchId(m.id, q) || matchId(m.code, q); });
+      var personnel = window.PersonnelDatabase.personnel.filter(function(p){ return matchId(p.id, q); });
+      var locations = window.CatalogData.locations.filter(function(l){ return matchId(l.id, q); });
+
+      if (_state.missionStatus   !== 'all') missions  = missions.filter(function(m){ return m.status   === _state.missionStatus; });
+      if (_state.missionPriority !== 'all') missions  = missions.filter(function(m){ return m.priority === _state.missionPriority; });
+      if (_state.classFilter     !== 'all') {
+        entities  = entities.filter(function(e){ return e.classification === _state.classFilter; });
+        modules   = modules.filter(function(m) { return m.classification === _state.classFilter; });
+      }
+      if (_state.personnelDivision !== 'all') personnel = personnel.filter(function(p){ return p.division.includes(_state.personnelDivision); });
+
+      var combined = [];
+      if (_state.type === 'all' || _state.type === 'mission')   missions.forEach(function(m){  combined.push(Object.assign({_type:'mission'},   m)); });
+      if (_state.type === 'all' || _state.type === 'entity')    entities.forEach(function(e){  combined.push(Object.assign({_type:'entity'},    e)); });
+      if (_state.type === 'all' || _state.type === 'module')    modules.forEach(function(m){   combined.push(Object.assign({_type:'module'},    m)); });
+      if (_state.type === 'all' || _state.type === 'personnel') personnel.forEach(function(p){ combined.push(Object.assign({_type:'personnel'}, p)); });
+      if (_state.type === 'all' || _state.type === 'location')  locations.forEach(function(l){ combined.push(Object.assign({_type:'location'},  l)); });
+
+      return { missions:missions, entities:entities, modules:modules, personnel:personnel, locations:locations, combined:combined };
+    }
+
+    function starBtn(type, id, name) {
+      var saved = isBookmarked(type, id);
+      var h = '<button class="bm-star' + (saved ? ' saved' : '') + '"'
+            + ' data-bm-type="' + esc(type) + '"'
+            + ' data-bm-id="'   + esc(id)   + '"'
+            + ' data-bm-name="' + esc(name) + '"'
+            + ' title="' + (saved ? '\u30d6\u30c3\u30af\u30de\u30fc\u30af\u89e3\u9664' : '\u30d6\u30c3\u30af\u30de\u30fc\u30af') + '">'
+            + (saved ? '\u2605' : '\u2606') + '</button>';
+      return h;
+    }
+
+    function missionCard(m) {
+      return '<div class="result-card" onclick="location.href=\'details/mission-detail.html?id=' + esc(m.id) + '\'">'
+        + '<div class="card-type-stripe stripe-mission"></div>'
+        + '<div class="card-body">'
+        +   '<div class="card-meta">'
+        +     '<div class="card-id">' + esc(m.id) + '</div>'
+        +     '<div class="card-badges">'
+        +       '<span class="badge badge-type-mission">\u53ce\u675f\u6848\u4ef6</span>'
+        +       '<span class="badge badge-' + esc(m.status)   + '">' + (STATUS_LABEL[m.status]   || m.status)   + '</span>'
+        +       '<span class="badge badge-' + esc(m.priority) + '">' + (PRIORITY_LABEL[m.priority] || m.priority) + '</span>'
+        +     '</div>'
+        +   '</div>'
+        +   '<div class="card-name">' + esc(m.title) + '</div>'
+        +   '<div class="card-desc">' + esc(m.description) + '</div>'
+        + '</div>'
+        + '<div class="card-footer">'
+        +   '<span class="card-footer-text">\ud83d\udccd ' + esc(m.location) + ' | GSI ' + m.gsi + '%</span>'
+        +   starBtn('mission', m.id, m.title)
+        + '</div>'
+        + '</div>';
+    }
+
+    function entityCard(e) {
+      return '<div class="result-card" onclick="location.href=\'details/entity-detail.html?id=' + esc(e.id) + '\'">'
+        + '<div class="card-type-stripe stripe-entity"></div>'
+        + '<div class="card-body">'
+        +   '<div class="card-meta">'
+        +     '<div class="card-id">' + esc(e.id) + ' / ' + esc(e.code) + '</div>'
+        +     '<div class="card-badges">'
+        +       '<span class="badge badge-type-entity">\u6d77\u8755\u5b9f\u4f53</span>'
+        +       '<span class="badge badge-' + esc(e.classification) + '">' + (CLASS_LABEL[e.classification] || e.classification) + '</span>'
+        +     '</div>'
+        +   '</div>'
+        +   '<div class="card-name">' + esc(e.name) + '</div>'
+        +   '<div class="card-desc">' + esc(e.description) + '</div>'
+        + '</div>'
+        + '<div class="card-footer">'
+        +   '<span class="card-footer-text">\ud83d\udd3a \u8105\u5a01\u5ea6 ' + esc(String(e.threat)) + ' | ' + esc(e.origin) + '</span>'
+        +   starBtn('entity', e.id, e.name)
+        + '</div>'
+        + '</div>';
+    }
+
+    function moduleCard(m) {
+      return '<div class="result-card" onclick="location.href=\'details/module-detail.html?id=' + esc(m.id) + '\'">'
+        + '<div class="card-type-stripe stripe-module"></div>'
+        + '<div class="card-body">'
+        +   '<div class="card-meta">'
+        +     '<div class="card-id">' + esc(m.id) + ' / ' + esc(m.code) + '</div>'
+        +     '<div class="card-badges">'
+        +       '<span class="badge badge-type-module">\u30e2\u30b8\u30e5\u30fc\u30eb</span>'
+        +       '<span class="badge badge-' + esc(m.classification) + '">' + (CLASS_LABEL[m.classification] || m.classification) + '</span>'
+        +     '</div>'
+        +   '</div>'
+        +   '<div class="card-name">' + esc(m.name) + '</div>'
+        +   '<div class="card-desc">' + esc(m.description) + '</div>'
+        + '</div>'
+        + '<div class="card-footer">'
+        +   '<span class="card-footer-text">\u26a1 ' + esc(String(m.energy || '')) + ' | ' + esc(String(m.developer || '')) + '</span>'
+        +   starBtn('module', m.id, m.name)
+        + '</div>'
+        + '</div>';
+    }
+
+    function personnelCard(p) {
+      var userLevel = ProgressSystem.getUserData().level || 0;
+      if (userLevel < 5) {
+        return '<div class="result-card" style="position:relative;">'
+          + '<div class="card-type-stripe stripe-personnel"></div>'
+          + '<div class="card-body" style="filter:blur(3px);pointer-events:none;user-select:none;">'
+          +   '<div class="card-meta"><div class="card-id">' + esc(p.id) + '</div>'
+          +   '<div class="card-badges"><span class="badge badge-type-personnel">\u4eba\u54e1</span></div></div>'
+          +   '<div class="card-name">\u2588\u2588\u2588\u2588 \u2588\u2588</div>'
+          +   '<div class="card-desc">\u6a5f\u5bc6\u60c5\u5831\u306f\u95b2\u89a7\u6a29\u9650\u304c\u5fc5\u8981\u3067\u3059\u3002</div>'
+          + '</div>'
+          + '<div class="locked-overlay">'
+          +   '<svg width="28" height="28" fill="none" stroke="currentColor" viewBox="0 0 24 24">'
+          +     '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>'
+          +   '</svg>'
+          +   'LEVEL 5 ACCESS REQUIRED'
+          + '</div>'
+          + '</div>';
+      }
+      return '<div class="result-card" onclick="location.href=\'details/personnel-detail.html?id=' + esc(p.id) + '\'">'
+        + '<div class="card-type-stripe stripe-personnel"></div>'
+        + '<div class="card-body">'
+        +   '<div class="card-meta">'
+        +     '<div class="card-id">' + esc(p.id) + '</div>'
+        +     '<div class="card-badges">'
+        +       '<span class="badge badge-type-personnel">\u4eba\u54e1</span>'
+        +       '<span class="badge badge-caution">' + esc(p.rank) + '</span>'
+        +     '</div>'
+        +   '</div>'
+        +   '<div class="card-name">' + esc(p.name) + '</div>'
+        +   '<div class="card-desc">' + esc(p.division) + ' | \u5c02\u9580: ' + esc(p.specialization) + '</div>'
+        + '</div>'
+        + '<div class="card-footer">'
+        +   '<span class="card-footer-text">\ud83d\uddd3 \u5165\u8077 ' + esc(p.joinDate) + ' | ' + p.age + '\u6b73</span>'
+        +   starBtn('personnel', p.id, p.name)
+        + '</div>'
+        + '</div>';
+    }
+
+    function locationCard(l) {
+      return '<div class="result-card" onclick="location.href=\'details/location-detail.html?id=' + esc(l.id) + '\'">'
+        + '<div class="card-type-stripe stripe-location"></div>'
+        + '<div class="card-body">'
+        +   '<div class="card-meta">'
+        +     '<div class="card-id">' + esc(l.id) + '</div>'
+        +     '<div class="card-badges">'
+        +       '<span class="badge badge-type-location">\u5834\u6240</span>'
+        +       '<span class="badge badge-safe">' + (LOC_TYPE_LABEL[l.type] || l.type) + '</span>'
+        +     '</div>'
+        +   '</div>'
+        +   '<div class="card-name">' + esc(l.name) + '</div>'
+        +   '<div class="card-desc">' + esc(l.description) + '</div>'
+        + '</div>'
+        + '<div class="card-footer">'
+        +   '<span class="card-footer-text">\ud83d\udce1 ' + esc(l.coordinates) + ' | SEC LV ' + l.securityLevel + '</span>'
+        +   starBtn('location', l.id, l.name)
+        + '</div>'
+        + '</div>';
+    }
+
+    function renderCard(item) {
+      if (item._type === 'mission')   return missionCard(item);
+      if (item._type === 'entity')    return entityCard(item);
+      if (item._type === 'module')    return moduleCard(item);
+      if (item._type === 'personnel') return personnelCard(item);
+      if (item._type === 'location')  return locationCard(item);
+      return '';
+    }
+
+    function updateGlobalStats() {
+      var m   = window.MissionData.missions;
+      var e   = window.CatalogData.entities;
+      var mod = window.CatalogData.modules;
+      var p   = window.PersonnelDatabase.personnel;
+      var l   = window.CatalogData.locations;
+      document.getElementById('statTotal').textContent     = m.length + e.length + mod.length + p.length + l.length;
+      document.getElementById('statMissions').textContent  = m.length;
+      document.getElementById('statEntities').textContent  = e.length;
+      document.getElementById('statModules').textContent   = mod.length;
+      document.getElementById('statPersonnel').textContent = p.length;
+      document.getElementById('statLocations').textContent = l.length;
+    }
+
+    function updateTypeCounts() {
+      var q  = _state.query.trim();
+      var allM   = q ? window.MissionData.missions.filter(function(m){ return matchId(m.id, q); }) : [];
+      var allE   = q ? window.CatalogData.entities.filter(function(e){ return matchId(e.id, q) || matchId(e.code, q); }) : [];
+      var allMod = q ? window.CatalogData.modules.filter(function(m){ return matchId(m.id, q) || matchId(m.code, q); }) : [];
+      var allP   = q ? window.PersonnelDatabase.personnel.filter(function(p){ return matchId(p.id, q); }) : [];
+      var allL   = q ? window.CatalogData.locations.filter(function(l){ return matchId(l.id, q); }) : [];
+      document.getElementById('cntAll').textContent       = allM.length + allE.length + allMod.length + allP.length + allL.length;
+      document.getElementById('cntMission').textContent   = allM.length;
+      document.getElementById('cntEntity').textContent    = allE.length;
+      document.getElementById('cntModule').textContent    = allMod.length;
+      document.getElementById('cntPersonnel').textContent = allP.length;
+      document.getElementById('cntLocation').textContent  = allL.length;
+    }
+
+    function renderSearch() {
+      var grid = document.getElementById('resultsGrid');
+      if (!_state.hasSearched) {
+        grid.innerHTML = '<div class="state-message">'
+          + '<svg width="52" height="52" fill="none" stroke="currentColor" viewBox="0 0 24 24">'
+          + '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>'
+          + '</svg>'
+          + '<p>ID\u3092\u5165\u529b\u3057\u3066\u691c\u7d22\u3057\u3066\u304f\u3060\u3055\u3044</p>'
+          + '<p class="hint">\u53ce\u675f\u6848\u4ef6 / \u5b9f\u4f53 / \u30e2\u30b8\u30e5\u30fc\u30eb / \u4eba\u54e1 / \u5834\u6240 \u3092\u6a2a\u65ad\u691c\u7d22</p>'
+          + '</div>';
+        document.getElementById('resultCount').textContent = '0';
+        document.getElementById('searchQueryDisplay').textContent = '';
+        updateTypeCounts();
+        return;
+      }
+      var data = getFiltered();
+      updateTypeCounts();
+      document.getElementById('resultCount').textContent = data.combined.length;
+      document.getElementById('searchQueryDisplay').textContent = _state.query ? '\u300c' + _state.query + '\u300d' : '';
+      if (data.combined.length === 0) {
+        grid.innerHTML = '<div class="state-message">'
+          + '<svg width="52" height="52" fill="none" stroke="currentColor" viewBox="0 0 24 24">'
+          + '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>'
+          + '</svg>'
+          + '<p>\u4e00\u81f4\u3059\u308b\u30ec\u30b3\u30fc\u30c9\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093\u3067\u3057\u305f</p>'
+          + '<p class="hint">ID\u3092\u78ba\u8a8d\u3059\u308b\u304b\u3001\u691c\u7d22\u30e2\u30fc\u30c9\u3092\u5909\u66f4\u3057\u3066\u304f\u3060\u3055\u3044</p>'
+          + '</div>';
+        return;
+      }
+      grid.innerHTML = data.combined.map(renderCard).join('');
+    }
+
+    function renderBookmarks() {
+      updateBmBadge();
+      var bms  = loadBookmarks();
+      var grid = document.getElementById('bookmarkGrid');
+      if (bms.length === 0) {
+        grid.innerHTML = '<div class="bm-empty">\u307e\u3060\u30d6\u30c3\u30af\u30de\u30fc\u30af\u304c\u3042\u308a\u307e\u305b\u3093<br>'
+          + '<span style="font-size:0.65rem;opacity:0.5;">\u5404\u30ab\u30fc\u30c9\u306e \u2606 \u3092\u30af\u30ea\u30c3\u30af\u3057\u3066\u4fdd\u5b58\u3067\u304d\u307e\u3059</span></div>';
+        return;
+      }
+      grid.innerHTML = bms.map(function(b) {
+        var item = null;
+        if (b._type === 'mission')   item = window.MissionData.missions.find(function(m){ return m.id === b.id; });
+        if (b._type === 'entity')    item = window.CatalogData.entities.find(function(e){ return e.id === b.id; });
+        if (b._type === 'module')    item = window.CatalogData.modules.find(function(m){ return m.id === b.id; });
+        if (b._type === 'personnel') item = window.PersonnelDatabase.personnel.find(function(p){ return p.id === b.id; });
+        if (b._type === 'location')  item = window.CatalogData.locations.find(function(l){ return l.id === b.id; });
+        if (!item) {
+          return '<div class="result-card" style="opacity:0.4;">'
+            + '<div class="card-type-stripe" style="background:rgba(255,255,255,0.1);"></div>'
+            + '<div class="card-body"><div class="card-id">' + esc(b.id) + '</div>'
+            + '<div class="card-name" style="color:var(--muted-foreground);">' + esc(b.name) + '</div>'
+            + '<div class="card-desc">\u30c7\u30fc\u30bf\u304c\u898b\u3064\u304b\u308a\u307e\u305b\u3093</div></div>'
+            + '<div class="card-footer"><span class="card-footer-text">\u2014</span>' + starBtn(b._type, b.id, b.name) + '</div></div>';
+        }
+        return renderCard(Object.assign({ _type: b._type }, item));
+      }).join('');
+    }
+
+    function renderHistory() {
+      var bar = document.getElementById('historyBar');
+      var h   = loadHistory();
+      if (h.length === 0) { bar.innerHTML = ''; return; }
+      var html = '<span class="history-label">\u5c65\u6b74:</span>';
+      h.forEach(function(q) {
+        html += '<div class="history-chip" onclick="window._hClick(this.dataset.q)" data-q="' + esc(q) + '">'
+              + esc(q)
+              + '<span class="chip-del" onclick="event.stopPropagation();window._hDel(this.parentElement.dataset.q)">\u2715</span>'
+              + '</div>';
+      });
+      html += '<button class="history-clear" onclick="window._hClear()">\u5168\u3066\u524a\u9664</button>';
+      bar.innerHTML = html;
+    }
+
+    function updateSubfilters() {
+      var t = _state.type;
+      document.getElementById('subfilterMission').classList.toggle('visible',   t === 'all' || t === 'mission');
+      document.getElementById('subfilterClass').classList.toggle('visible',     t === 'all' || t === 'entity' || t === 'module');
+      document.getElementById('subfilterPersonnel').classList.toggle('visible', t === 'all' || t === 'personnel');
+    }
+
+    function doSearch() {
+      var inp = document.getElementById('idSearchInput');
+      var q   = inp.value.trim();
+      if (!q) {
+        inp.classList.add('error');
+        var orig = inp.placeholder;
+        inp.placeholder = '\u26a0 ID\u3092\u5165\u529b\u3057\u3066\u304f\u3060\u3055\u3044';
+        setTimeout(function(){ inp.classList.remove('error'); inp.placeholder = orig; }, 2000);
+        return;
+      }
+      _dataReady.then(function() {
+        _state.query       = q;
+        _state.hasSearched = true;
+        addHistory(q);
+        renderSearch();
+      });
+    }
+
+    window._hClick = function(q) {
+      var inp = document.getElementById('idSearchInput');
+      inp.value = q;
+      _dataReady.then(function() {
+        _state.query = q; _state.hasSearched = true; renderSearch();
+      });
+    };
+    window._hDel   = function(q) { saveHistory(loadHistory().filter(function(x){ return x !== q; })); renderHistory(); };
+    window._hClear = function()  { saveHistory([]); renderHistory(); };
+
+    document.getElementById('searchBtn').addEventListener('click', doSearch);
+    document.getElementById('idSearchInput').addEventListener('keypress', function(e) {
+      if (e.key === 'Enter') doSearch();
+    });
+
+    document.querySelectorAll('.type-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.type-btn').forEach(function(b){ b.classList.remove('active'); });
+        _state.type = this.dataset.type;
+        updateSubfilters();
+        if (_state.hasSearched) renderSearch();
+      });
+    });
+
+    document.getElementById('missionStatus').addEventListener('change', function(e) {
+      _state.missionStatus = e.target.value;
+      if (_state.hasSearched) renderSearch();
+    });
+    document.getElementById('missionPriority').addEventListener('change', function(e) {
+      _state.missionPriority = e.target.value;
+      if (_state.hasSearched) renderSearch();
+    });
+    document.getElementById('personnelDivision').addEventListener('change', function(e) {
+      _state.personnelDivision = e.target.value;
+      if (_state.hasSearched) renderSearch();
+    });
+
+    document.querySelectorAll('.class-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.class-btn').forEach(function(b){ b.classList.remove('active'); });
+        this.classList.add('active');
+        _state.classFilter = this.dataset.class;
+        if (_state.hasSearched) renderSearch();
+      });
+    });
+
+    document.getElementById('viewSearchBtn').addEventListener('click', function() {
+      _state.view = 'search';
+      this.classList.add('active');
+      document.getElementById('viewBookmarkBtn').classList.remove('active');
+      document.getElementById('searchPanel').style.display   = '';
+      document.getElementById('bookmarkPanel').style.display = 'none';
+    });
+    document.getElementById('viewBookmarkBtn').addEventListener('click', function() {
+      _state.view = 'bookmark';
+      this.classList.add('active');
+      document.getElementById('viewSearchBtn').classList.remove('active');
+      document.getElementById('searchPanel').style.display   = 'none';
+      document.getElementById('bookmarkPanel').style.display = '';
+      _dataReady.then(renderBookmarks);
+    });
+
+    document.addEventListener('click', function(e) {
+      var btn = e.target.closest('.bm-star[data-bm-type]');
+      if (!btn) return;
+      e.stopPropagation();
+      toggleBookmark(btn.getAttribute('data-bm-type'), btn.getAttribute('data-bm-id'), btn.getAttribute('data-bm-name'));
+    });
+
+    if (!ProgressSystem.checkPageAccess('search.html')) {
+      ModalSystem.warning('\u3053\u306e\u30da\u30fc\u30b8\u306b\u30a2\u30af\u30bb\u30b9\u3059\u308b\u306b\u306f LEVEL 4 \u304c\u5fc5\u8981\u3067\u3059\u3002', 'ACCESS DENIED')
+        .then(function() { window.location.href = './dashboard.html'; });
+    } else {
+      _dataReady.then(function() {
+        updateGlobalStats();
+        updateBmBadge();
+        updateSubfilters();
+        renderHistory();
+        renderSearch();
+      });
+    }
+  </script>
+</body>
+</html>

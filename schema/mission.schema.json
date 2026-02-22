@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "KaishokuMission",
+  "description": "収束案件（ミッション）データのスキーマ",
+  "type": "object",
+  "required": ["id", "title", "status", "securityLevel"],
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^MISSION-",
+      "description": "ミッションID (例: MISSION-2025-DEC-BEPPU)"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": ["対応中", "完了", "中断", "調査中", "封印済み", "進行中", "不明"]
+    },
+    "priority": {
+      "type": "string",
+      "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL", "低", "中", "高", "最高", "緊急"]
+    },
+    "gsi": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "GSI（地質異常指数）"
+    },
+    "securityLevel": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "location":           { "type": "string" },
+    "coordinates":        { "type": "string" },
+    "startDate":          { "type": "string" },
+    "endDate":            { "type": "string" },
+    "description":        { "type": "string" },
+    "result":             { "type": "string" },
+    "notes":              { "type": "string" },
+    "casualties":         { "type": "integer", "minimum": 0 },
+    "civilianEvacuation": { "type": "integer", "minimum": 0 },
+    "assignedDivisions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "relatedPersonnel": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^K-\\d{3}-\\d+$" }
+    },
+    "relatedEntities": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "relatedModules": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "timeline": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["time", "event"],
+        "properties": {
+          "time":  { "type": "string" },
+          "event": { "type": "string" }
+        }
+      }
+    }
+  }
+}

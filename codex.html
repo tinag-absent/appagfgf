@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title>世界設定辞典 — 海蝕機関</title>
+  <link rel="icon" type="image/png" href="./images/favicon.png">
+  <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/sidebar.css">
+  <link rel="stylesheet" href="./css/mobile.css">
+  <style>
+    .codex-header {
+      border-left: 4px solid var(--primary);
+      padding-left: 1rem;
+      margin-bottom: 2.5rem;
+    }
+    .codex-search-bar {
+      display: flex;
+      gap: .75rem;
+      margin-bottom: 2rem;
+    }
+    .codex-search-input {
+      flex: 1;
+      background: rgba(0,0,0,.4);
+      border: 1px solid rgba(255,255,255,.12);
+      color: var(--foreground);
+      padding: .65rem 1rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .85rem;
+      outline: none;
+      transition: border-color .2s;
+    }
+    .codex-search-input:focus { border-color: var(--primary); }
+    .codex-filter-row {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      margin-bottom: 2rem;
+    }
+    .cf-chip {
+      padding: .3rem .9rem;
+      background: rgba(0,0,0,.3);
+      border: 1px solid rgba(255,255,255,.1);
+      color: var(--muted-foreground);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .7rem;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .cf-chip.active, .cf-chip:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: rgba(0,255,255,.07);
+    }
+    .codex-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .codex-card {
+      background: rgba(0,0,0,.3);
+      border: 1px solid rgba(255,255,255,.08);
+      border-top: 3px solid var(--card-accent, var(--primary));
+      padding: 1.25rem 1.5rem;
+      cursor: pointer;
+      transition: all .2s;
+      position: relative;
+    }
+    .codex-card:hover {
+      background: rgba(255,255,255,.04);
+      border-color: rgba(255,255,255,.2);
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,.4);
+    }
+    .codex-card.locked {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+    .codex-card.locked:hover { transform: none; box-shadow: none; }
+    .codex-card-icon { font-size: 2rem; margin-bottom: .75rem; }
+    .codex-card-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: white;
+      margin-bottom: .4rem;
+      text-transform: uppercase;
+    }
+    .codex-card-desc {
+      font-size: .8rem;
+      color: var(--muted-foreground);
+      line-height: 1.5;
+    }
+    .codex-card-level {
+      margin-top: .75rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .65rem;
+      color: var(--card-accent, var(--primary));
+      opacity: .8;
+    }
+    .codex-lock-badge {
+      position: absolute;
+      top: .75rem;
+      right: .75rem;
+      font-size: .65rem;
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(239,68,68,.15);
+      border: 1px solid rgba(239,68,68,.3);
+      color: #ef4444;
+      padding: .15rem .5rem;
+    }
+    /* Detail panel */
+    .codex-detail-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(0,0,0,.7);
+      backdrop-filter: blur(4px);
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .codex-detail-overlay.open { display: flex; }
+    .codex-detail-panel {
+      background: var(--card);
+      border: 1px solid rgba(255,255,255,.12);
+      max-width: 680px;
+      width: 100%;
+      max-height: 85vh;
+      overflow-y: auto;
+      position: relative;
+    }
+    .cdp-header {
+      padding: 1.5rem 2rem 1rem;
+      border-bottom: 1px solid rgba(255,255,255,.1);
+      display: flex;
+      align-items: flex-start;
+      gap: 1rem;
+    }
+    .cdp-icon { font-size: 2.5rem; }
+    .cdp-title-block { flex: 1; }
+    .cdp-close {
+      background: none;
+      border: 1px solid rgba(255,255,255,.15);
+      color: var(--muted-foreground);
+      cursor: pointer;
+      padding: .3rem .7rem;
+      font-size: .75rem;
+      font-family: 'JetBrains Mono', monospace;
+      transition: all .2s;
+      flex-shrink: 0;
+    }
+    .cdp-close:hover { border-color: var(--destructive); color: var(--destructive); }
+    .cdp-body {
+      padding: 1.5rem 2rem 2rem;
+      color: var(--muted-foreground);
+      line-height: 1.8;
+      font-size: .9rem;
+    }
+    .cdp-body h2 {
+      font-family: 'Space Grotesk', sans-serif;
+      color: white;
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+      margin-top: 1.5rem;
+      padding-bottom: .4rem;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .cdp-body h2:first-child { margin-top: 0; }
+    .cdp-body h3 {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .8rem;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-top: 1.2rem;
+      margin-bottom: .5rem;
+    }
+    .cdp-body p { margin-bottom: .75rem; }
+    .cdp-body ul { padding-left: 1.25rem; margin-bottom: .75rem; }
+    .cdp-body ul li { margin-bottom: .3rem; }
+    .codex-empty {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--muted-foreground);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .85rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar"></aside>
+    <button class="mobile-menu-toggle">
+      <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+    <div class="mobile-menu-overlay"></div>
+
+    <main class="main-content scanline">
+      <div class="container animate-fadeIn">
+
+        <div class="codex-header">
+          <h1 style="font-size:2.5rem;font-family:'Space Grotesk',sans-serif;font-weight:700;color:white;text-transform:uppercase;">
+            世界設定辞典
+          </h1>
+          <p class="font-mono" style="font-size:.875rem;margin-top:.5rem;color:var(--muted-foreground);">
+            WORLD CODEX — 海蝕現象・機関・次元に関する基礎知識
+          </p>
+        </div>
+
+        <div class="codex-search-bar">
+          <input class="codex-search-input" id="codexSearch" placeholder="キーワードで検索 ..." oninput="filterCodex()">
+        </div>
+
+        <div class="codex-filter-row" id="codexFilterRow">
+          <button class="cf-chip active" data-lvfilter="all">全て</button>
+          <button class="cf-chip" data-lvfilter="0">LEVEL 0〜</button>
+          <button class="cf-chip" data-lvfilter="1">LEVEL 1〜</button>
+          <button class="cf-chip" data-lvfilter="2">LEVEL 2〜</button>
+        </div>
+
+        <div class="codex-grid" id="codex-container"></div>
+
+        <div class="codex-empty" id="codexEmpty" style="display:none">
+          該当するエントリが見つかりません
+        </div>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- Detail overlay -->
+  <div class="codex-detail-overlay" id="codexOverlay" onclick="closeDetail(event)">
+    <div class="codex-detail-panel" id="codexPanel">
+      <div class="cdp-header">
+        <div class="cdp-icon" id="cdpIcon"></div>
+        <div class="cdp-title-block">
+          <h2 style="font-family:'Space Grotesk',sans-serif;font-size:1.3rem;color:white;text-transform:uppercase;" id="cdpTitle"></h2>
+          <p style="font-size:.78rem;font-family:'JetBrains Mono',monospace;color:var(--muted-foreground);margin-top:.3rem;" id="cdpSummary"></p>
+        </div>
+        <button class="cdp-close" onclick="closeDetail()">✕ 閉じる</button>
+      </div>
+      <div class="cdp-body" id="cdpBody"></div>
+    </div>
+  </div>
+
+  <script src="./js/core/error-handler.js" defer></script>
+  <script src="./js/data/data-bundle.js" defer></script>
+  <script src="./js/core/loading.js" defer></script>
+  <script src="./js/core/sidebar.js" defer></script>
+  <script src="./js/core/bookmark.js" defer></script>
+  <script src="./js/core/main.js" defer></script>
+  <script src="./js/core/modal.js" defer></script>
+  <script src="./js/core/progress.js" defer></script>
+  <script src="./js/core/story-engine.js" defer></script>
+  <script src="./js/core/notifications.js" defer></script>
+  
+  <script src="./js/pages/codex.js" defer></script>
+  <script>
+    var lvFilter = 'all';
+    var userLevel = ProgressSystem.getUserData()?.level ?? 0;
+
+    // codex.jsが生成する関数を上書きして再レンダリング対応
+    window.__codexShow = function(id) {
+      var entry = window.__codexEntries && window.__codexEntries.find(function(e){ return e.id === id; });
+      if (!entry) return;
+      if (userLevel < entry.level) {
+        ModalSystem.warning('このエントリの閲覧には LEVEL ' + entry.level + ' が必要です。', 'アクセス制限');
+        return;
+      }
+      document.getElementById('cdpIcon').textContent = entry.icon;
+      document.getElementById('cdpTitle').textContent = entry.title;
+      document.getElementById('cdpSummary').textContent = entry.summary;
+      document.getElementById('cdpBody').innerHTML = entry.content;
+      document.getElementById('codexOverlay').classList.add('open');
+      document.body.style.overflow = 'hidden';
+    };
+
+    function closeDetail(e) {
+      if (e && e.target !== document.getElementById('codexOverlay')) return;
+      document.getElementById('codexOverlay').classList.remove('open');
+      document.body.style.overflow = '';
+    }
+
+    function filterCodex() {
+      var q = document.getElementById('codexSearch').value.toLowerCase();
+      var entries = window.__codexEntries || [];
+      var cards = document.querySelectorAll('.codex-card');
+      var shown = 0;
+      cards.forEach(function(card) {
+        var id = card.dataset.id;
+        var e = entries.find(function(x){ return x.id === id; });
+        if (!e) return;
+        var matchQ = !q || e.title.toLowerCase().includes(q) || e.summary.toLowerCase().includes(q);
+        var matchLv = lvFilter === 'all' || e.level >= parseInt(lvFilter);
+        card.style.display = (matchQ && matchLv) ? '' : 'none';
+        if (matchQ && matchLv) shown++;
+      });
+      document.getElementById('codexEmpty').style.display = shown === 0 ? 'block' : 'none';
+    }
+
+    document.querySelectorAll('.cf-chip').forEach(function(chip) {
+      chip.addEventListener('click', function() {
+        document.querySelectorAll('.cf-chip').forEach(function(c){ c.classList.remove('active'); });
+        chip.classList.add('active');
+        lvFilter = chip.dataset.lvfilter;
+        filterCodex();
+      });
+    });
+
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeDetail();
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,100 @@
+name: Validate, Optimize and Deploy
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同時デプロイを防ぐ（進行中のデプロイをキャンセルせず待機）
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  # ─────────────────────────────────────────────────────────────
+  # Job 1: JSON 検証 + 最適化
+  # ─────────────────────────────────────────────────────────────
+  validate-and-optimize:
+    name: Validate JSON & Check Relations
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      # ① スキーマ検証（AJV）
+      - name: Validate JSON Schemas
+        run: node scripts/validate-json.js
+
+      # ② 参照整合チェック
+      - name: Check Data Relations
+        run: node scripts/check-relations.js
+
+      # ③ JSON Minify（デプロイ前に軽量化）
+      - name: Minify JSON
+        run: node scripts/minify-json.js
+
+      # Minify 済みファイルを次 Job に渡す
+      - name: Upload optimized data
+        uses: actions/upload-artifact@v4
+        with:
+          name: optimized-data
+          path: data/
+          retention-days: 1
+
+  # ─────────────────────────────────────────────────────────────
+  # Job 2: GitHub Pages デプロイ
+  # （validate-and-optimize が成功した場合のみ実行）
+  # ─────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: validate-and-optimize
+    runs-on: ubuntu-latest
+    # PR では deploy しない（main push & workflow_dispatch のみ）
+    if: github.event_name != 'pull_request'
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Minify 済み data/ で上書き
+      - name: Download optimized data
+        uses: actions/download-artifact@v4
+        with:
+          name: optimized-data
+          path: data/
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      # .github/ や node_modules/ など不要なものを除いてアップロード
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

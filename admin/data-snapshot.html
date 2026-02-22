@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>データスナップショット — 海蝕機関</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090f;--panel:#0c1018;--panel2:#111620;--border:#1a2030;--border2:#263040;
+  --cyan:#00d4ff;--cyan-dim:#001c28;--green:#00e676;--green-dim:#002810;
+  --yellow:#ffd740;--yellow-dim:#2a2000;--red:#ff5252;--red-dim:#2a0808;
+  --purple:#ce93d8;--orange:#ff9800;--blue:#4fc3f7;
+  --text:#cdd6e8;--text2:#7a8aa0;--text3:#445060;
+  --mono:'Share Tech Mono',monospace;--sans:'Noto Sans JP',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;min-height:100vh;display:flex;flex-direction:column;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,212,255,.008) 3px,rgba(0,212,255,.008) 4px);}
+
+.hdr{background:var(--panel);border-bottom:1px solid var(--border2);padding:0 24px;height:50px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.hdr-title{font-family:var(--mono);font-size:12px;color:var(--green);letter-spacing:.2em;}
+.hdr-sub{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.hdr-sep{flex:1;}
+.btn{background:none;border:1px solid var(--border2);color:var(--text2);font-family:var(--mono);font-size:10px;padding:6px 14px;cursor:pointer;letter-spacing:.08em;transition:all .15s;}
+.btn:hover{border-color:var(--cyan);color:var(--cyan);}
+.btn-green{background:var(--green-dim);border-color:var(--green);color:var(--green);}
+.btn-green:hover{background:#004020;}
+.btn-red{background:var(--red-dim);border-color:var(--red);color:var(--red);}
+.btn-yellow{background:var(--yellow-dim);border-color:var(--yellow);color:var(--yellow);}
+
+.layout{display:grid;grid-template-columns:340px 1fr;gap:0;flex:1;height:calc(100vh - 50px);overflow:hidden;}
+
+/* Snapshot list */
+.snap-list-panel{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.snap-list-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.snap-list-title{font-family:var(--mono);font-size:10px;color:var(--green);letter-spacing:.12em;flex:1;}
+.snap-list{overflow-y:auto;flex:1;}
+.snap-item{padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;position:relative;}
+.snap-item:hover{background:var(--panel2);}
+.snap-item.active{background:rgba(0,230,118,.06);border-left:2px solid var(--green);}
+.snap-item.compare{background:rgba(255,215,64,.06);border-left:2px solid var(--yellow);}
+.snap-version{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--green);margin-bottom:3px;}
+.snap-ts{font-family:var(--mono);font-size:9px;color:var(--text3);margin-bottom:5px;}
+.snap-tag{display:inline-block;font-family:var(--mono);font-size:9px;padding:1px 7px;border-radius:2px;margin-right:4px;margin-bottom:2px;}
+.snap-hash{font-family:var(--mono);font-size:9px;color:var(--text3);}
+.snap-actions{display:flex;gap:4px;margin-top:8px;}
+.snap-btn{background:none;border:1px solid var(--border2);color:var(--text3);font-family:var(--mono);font-size:9px;padding:2px 8px;cursor:pointer;transition:all .1s;}
+.snap-btn:hover{border-color:var(--cyan);color:var(--cyan);}
+.snap-btn-del:hover{border-color:var(--red);color:var(--red);}
+.snap-compare-badge{position:absolute;top:10px;right:12px;font-family:var(--mono);font-size:8px;padding:1px 6px;background:var(--yellow-dim);border:1px solid var(--yellow);color:var(--yellow);}
+
+/* Main area */
+.main-area{display:flex;flex-direction:column;overflow:hidden;}
+.main-tabs{display:flex;background:var(--panel);border-bottom:1px solid var(--border);}
+.tab{padding:10px 18px;font-family:var(--mono);font-size:10px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.06em;transition:color .15s;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--green);border-bottom-color:var(--green);}
+.tab-body{flex:1;overflow-y:auto;padding:20px 24px;}
+.tab-pane{display:none;}
+.tab-pane.active{display:block;}
+
+/* Create snapshot form */
+.create-box{background:var(--panel2);border:1px solid var(--border);padding:20px;max-width:560px;margin-bottom:24px;}
+.create-title{font-family:var(--mono);font-size:11px;color:var(--green);letter-spacing:.12em;margin-bottom:14px;}
+.field{display:flex;flex-direction:column;gap:5px;margin-bottom:12px;}
+.field-label{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;}
+.field-input{background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:7px 10px;font-family:var(--mono);font-size:12px;outline:none;transition:border-color .15s;width:100%;}
+.field-input:focus{border-color:var(--green);}
+.tag-wrap{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;}
+.tag-chip{display:flex;align-items:center;gap:3px;padding:2px 8px;background:var(--panel2);border:1px solid var(--border2);font-family:var(--mono);font-size:9px;color:var(--yellow);}
+.tag-rm{background:none;border:none;color:var(--text3);cursor:pointer;font-size:10px;padding:0;}
+
+/* Snapshot detail */
+.detail-header{background:var(--panel2);border:1px solid var(--border);padding:16px 20px;margin-bottom:16px;}
+.detail-version{font-family:var(--mono);font-size:22px;color:var(--green);margin-bottom:4px;}
+.detail-meta{display:flex;gap:16px;flex-wrap:wrap;}
+.detail-meta-item{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.detail-meta-val{color:var(--text2);margin-left:4px;}
+
+/* Data section */
+.data-section{margin-bottom:20px;}
+.data-section-title{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid var(--border);margin-bottom:10px;}
+.key-val-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.kv-item{background:var(--panel2);border:1px solid var(--border);padding:10px 12px;}
+.kv-key{font-family:var(--mono);font-size:9px;color:var(--text3);margin-bottom:4px;}
+.kv-val{font-family:var(--mono);font-size:16px;color:var(--cyan);}
+.json-view{font-family:var(--mono);font-size:10px;color:var(--text2);white-space:pre-wrap;background:var(--panel2);border:1px solid var(--border);padding:14px;max-height:400px;overflow-y:auto;line-height:1.7;}
+
+/* Diff */
+.diff-header{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;align-items:center;margin-bottom:16px;}
+.diff-vs{font-family:var(--mono);font-size:12px;color:var(--text3);text-align:center;}
+.diff-area{font-family:var(--mono);font-size:10px;line-height:1.8;}
+.diff-section{margin-bottom:16px;}
+.diff-section-title{font-size:9px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;padding-bottom:4px;border-bottom:1px solid var(--border);margin-bottom:8px;}
+.diff-row{display:grid;grid-template-columns:auto 1fr 1fr;gap:10px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.03);}
+.diff-key{color:var(--text3);white-space:nowrap;}
+.diff-old{color:var(--red);padding:1px 6px;background:rgba(255,82,82,.08);}
+.diff-new{color:var(--green);padding:1px 6px;background:rgba(0,230,118,.08);}
+.diff-added{color:var(--green);}
+.diff-removed{color:var(--red);}
+.diff-unchanged{color:var(--text3);}
+
+/* Toast */
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:1000;display:flex;flex-direction:column;gap:5px;}
+.toast-item{padding:8px 14px;font-family:var(--mono);font-size:10px;border:1px solid;animation:fadein .2s;}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+.empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:12px;color:var(--text3);}
+.empty-icon{font-size:32px;opacity:.25;}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-dot"></div>
+  <div class="hdr-title">データスナップショット</div>
+  <div class="hdr-sub">VERSION CONTROL SYSTEM</div>
+  <div class="hdr-sep"></div>
+  <button class="btn btn-green" onclick="switchMainTab('create')">＋ 新規スナップショット</button>
+  <a href="./admin-hub.html" class="btn" style="margin-left:6px;">← HUB</a>
+</div>
+
+<div class="layout">
+  <!-- Snapshot list -->
+  <div class="snap-list-panel">
+    <div class="snap-list-hdr">
+      <div class="snap-list-title">スナップショット一覧</div>
+      <span id="snapCount" style="font-family:var(--mono);font-size:9px;color:var(--text3);">0件</span>
+    </div>
+    <div class="snap-list" id="snapList"></div>
+  </div>
+
+  <!-- Main area -->
+  <div class="main-area">
+    <div class="main-tabs">
+      <div class="tab active" id="mt-create" onclick="switchMainTab('create')">新規作成</div>
+      <div class="tab" id="mt-detail" onclick="switchMainTab('detail')">詳細</div>
+      <div class="tab" id="mt-diff" onclick="switchMainTab('diff')">差分比較</div>
+    </div>
+    <div class="tab-body">
+
+      <!-- CREATE -->
+      <div class="tab-pane active" id="mp-create">
+        <div class="create-box">
+          <div class="create-title">■ 新規スナップショット作成</div>
+          <div class="field">
+            <div class="field-label">バージョンタグ</div>
+            <input class="field-input" id="snapVersion" placeholder="v11.0" value="">
+          </div>
+          <div class="field">
+            <div class="field-label">メモ</div>
+            <input class="field-input" id="snapNote" placeholder="保存理由・変更内容">
+          </div>
+          <div class="field">
+            <div class="field-label">ラベルタグ</div>
+            <div class="tag-wrap" id="labelWrap"></div>
+            <div style="display:flex;gap:6px;">
+              <input class="field-input" id="labelInput" placeholder="タグ名（例: stable, pre-event）" style="flex:1;" onkeydown="if(event.key==='Enter')addLabel()">
+              <button class="btn" onclick="addLabel()">追加</button>
+            </div>
+          </div>
+          <div style="margin-top:8px;padding:12px;background:var(--bg);border:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--text3);line-height:1.8;margin-bottom:14px;">
+            <div style="color:var(--green);margin-bottom:4px;">含まれるデータ:</div>
+            <div id="snapshotPreview">— 読み込み中 —</div>
+          </div>
+          <button class="btn btn-green" onclick="createSnapshot()" style="width:100%;padding:10px;">■ スナップショットを保存</button>
+        </div>
+
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:10px;letter-spacing:.08em;">■ 全データ一括エクスポート / インポート</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+          <button class="btn btn-yellow" onclick="exportAllSnapshots()" style="padding:10px;">
+            <div style="font-size:16px;margin-bottom:3px;">📄</div>JSON — 全スナップショット
+          </button>
+          <button class="btn" style="padding:10px;border-color:var(--yellow);color:var(--yellow);background:var(--yellow-dim);" onclick="exportZip()">
+            <div style="font-size:16px;margin-bottom:3px;">📦</div>ZIP — スナップショット＋状態データ
+          </button>
+          <button class="btn" onclick="exportCurrentState()" style="padding:10px;">
+            <div style="font-size:16px;margin-bottom:3px;">💾</div>JSON — 現在の状態のみ
+          </button>
+          <button class="btn" style="padding:10px;border-color:var(--cyan);color:var(--cyan);background:var(--cyan-dim);" onclick="exportFullZip()">
+            <div style="font-size:16px;margin-bottom:3px;">🗜</div>ZIP — 全データ完全バックアップ
+          </button>
+        </div>
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:6px;letter-spacing:.08em;">■ インポート</div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn" onclick="importSnapshots()">📄 JSON インポート</button>
+          <button class="btn" style="border-color:var(--yellow);color:var(--yellow);" onclick="importZip()">📦 ZIP インポート</button>
+        </div>
+        <input type="file" id="importFile"    accept=".json" style="display:none" onchange="handleImport(event)">
+        <input type="file" id="importFileZip" accept=".zip"  style="display:none" onchange="handleImportZip(event)">
+        <div id="importProgress" style="display:none;margin-top:10px;padding:10px;background:var(--panel2);border:1px solid var(--border);font-family:var(--mono);font-size:10px;color:var(--text2);"></div>
+      </div>
+
+      <!-- DETAIL -->
+      <div class="tab-pane" id="mp-detail">
+        <div id="detailEmpty" class="empty">
+          <div class="empty-icon">📦</div>
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;">スナップショットを選択してください</div>
+        </div>
+        <div id="detailContent" style="display:none;"></div>
+      </div>
+
+      <!-- DIFF -->
+      <div class="tab-pane" id="mp-diff">
+        <div id="diffEmpty" class="empty">
+          <div class="empty-icon">⚖</div>
+          <div style="font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-align:center;">
+            リストから1件目を選択してアクティブに設定<br>
+            2件目を「比較対象」に設定して差分を表示
+          </div>
+        </div>
+        <div id="diffContent" style="display:none;"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const SNAP_KEY = 'kaishoku_snapshots';
+const LABEL_COLORS = ['#00d4ff','#00e676','#ffd740','#ff9800','#ce93d8','#ff5252','#4fc3f7'];
+let snapshots = [];
+let activeSnap = null;
+let compareSnap = null;
+let _labels = [];
+
+function loadSnapshots() {
+  try { snapshots = JSON.parse(localStorage.getItem(SNAP_KEY)||'[]'); }
+  catch(e) { snapshots = []; }
+  renderSnapList();
+  updatePreview();
+}
+
+// ── Current state collector ───────────────────────────────────
+function collectCurrentState() {
+  const get = (k,d=null) => { try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){return d;} };
+  return {
+    storyState:  get('kaishoku_story_state',{flags:{},variables:{},history:[],firedSet:{}}),
+    viewHistory: get('kaishoku_view_history',[]),
+    users:       get('kaishoku_users',[]),
+    currentUser: get('kaishoku_current_user',null),
+    dwellTimes:  get('kaishoku_dwell_times',{}),
+    pageVisits:  get('kaishoku_page_visits',{}),
+  };
+}
+
+function updatePreview() {
+  const s = collectCurrentState();
+  const prev = document.getElementById('snapshotPreview');
+  if (!prev) return;
+  const flags   = Object.values(s.storyState.flags||{}).filter(Boolean).length;
+  const fired   = Object.keys(s.storyState.firedSet||{}).length;
+  const score   = s.storyState.variables.anomaly_score||0;
+  const views   = s.viewHistory.length;
+  const users   = s.users.length;
+  prev.innerHTML = `異常スコア: <span style="color:var(--cyan)">${score}</span> / `+
+    `イベント: <span style="color:var(--cyan)">${fired}</span>件 / `+
+    `フラグ: <span style="color:var(--cyan)">${flags}</span>件 / `+
+    `閲覧履歴: <span style="color:var(--cyan)">${views}</span>件 / `+
+    `ユーザー: <span style="color:var(--cyan)">${users}</span>件`;
+}
+
+// ── Create snapshot ───────────────────────────────────────────
+function createSnapshot() {
+  const version = document.getElementById('snapVersion').value.trim() || autoVersion();
+  const note    = document.getElementById('snapNote').value.trim();
+  const state   = collectCurrentState();
+  const raw     = JSON.stringify(state);
+  const hash    = simpleHash(raw);
+  const snap = {
+    id:        Date.now().toString(36),
+    version:   version,
+    timestamp: Date.now(),
+    hash:      hash,
+    note:      note,
+    labels:    [..._labels],
+    data:      state,
+    size:      raw.length,
+  };
+  snapshots.unshift(snap);
+  persistSnapshots();
+  renderSnapList();
+  document.getElementById('snapVersion').value = '';
+  document.getElementById('snapNote').value = '';
+  _labels = [];
+  renderLabels();
+  toast('✓ スナップショット ' + version + ' を保存', 'green');
+  selectSnap(snap.id);
+}
+
+function autoVersion() {
+  if (!snapshots.length) return 'v1.0';
+  const last = snapshots[0].version;
+  const m = last.match(/v(\d+)\.(\d+)/);
+  if (!m) return 'v' + snapshots.length;
+  return 'v' + m[1] + '.' + (parseInt(m[2])+1);
+}
+
+function simpleHash(str) {
+  let h = 0;
+  for (let i=0; i<str.length; i++) { h = ((h<<5)-h)+str.charCodeAt(i); h=h&h; }
+  return Math.abs(h).toString(36).slice(0,7);
+}
+
+// ── Labels ────────────────────────────────────────────────────
+function addLabel() {
+  const inp = document.getElementById('labelInput');
+  const v = inp.value.trim();
+  if (!v) return;
+  _labels.push(v);
+  inp.value = '';
+  renderLabels();
+}
+function renderLabels() {
+  document.getElementById('labelWrap').innerHTML = _labels.map((l,i) => {
+    const col = LABEL_COLORS[i%LABEL_COLORS.length];
+    return `<span class="tag-chip" style="border-color:${col}40;color:${col}">${l}<button class="tag-rm" onclick="_labels.splice(${i},1);renderLabels()">×</button></span>`;
+  }).join('');
+}
+
+// ── Render snapshot list ──────────────────────────────────────
+function renderSnapList() {
+  document.getElementById('snapCount').textContent = snapshots.length + '件';
+  document.getElementById('snapList').innerHTML = snapshots.map(s => {
+    const isActive  = activeSnap  && activeSnap.id===s.id;
+    const isCompare = compareSnap && compareSnap.id===s.id;
+    const ts = new Date(s.timestamp).toLocaleString('ja');
+    const sizeKB = (s.size/1024).toFixed(1);
+    return `<div class="snap-item${isActive?' active':''}${isCompare?' compare':''}" onclick="selectSnap('${s.id}')">
+      ${isCompare?'<div class="snap-compare-badge">比較対象</div>':''}
+      <div class="snap-version">${s.version}</div>
+      <div class="snap-ts">${ts} · ${sizeKB}KB · #${s.hash}</div>
+      ${s.labels.length?`<div>${s.labels.map((l,i)=>`<span class="snap-tag" style="background:${LABEL_COLORS[i%LABEL_COLORS.length]}18;border:1px solid ${LABEL_COLORS[i%LABEL_COLORS.length]}40;color:${LABEL_COLORS[i%LABEL_COLORS.length]}">${l}</span>`).join('')}</div>`:''}
+      ${s.note?`<div style="font-size:11px;color:var(--text3);margin-top:4px;">${s.note}</div>`:''}
+      <div class="snap-actions" onclick="event.stopPropagation()">
+        <button class="snap-btn" onclick="setCompare('${s.id}')">比較対象に設定</button>
+        <button class="snap-btn" onclick="downloadSnap('${s.id}')">↓</button>
+        <button class="snap-btn snap-btn-del" onclick="deleteSnap('${s.id}')">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectSnap(id) {
+  activeSnap = snapshots.find(s=>s.id===id);
+  renderSnapList();
+  renderDetail();
+  switchMainTab('detail');
+}
+function setCompare(id) {
+  compareSnap = snapshots.find(s=>s.id===id);
+  renderSnapList();
+  if (activeSnap && compareSnap) { renderDiff(); switchMainTab('diff'); }
+}
+
+// ── Detail ────────────────────────────────────────────────────
+function renderDetail() {
+  const el = document.getElementById('detailContent');
+  const empty = document.getElementById('detailEmpty');
+  if (!activeSnap) { el.style.display='none'; empty.style.display='flex'; return; }
+  empty.style.display='none'; el.style.display='block';
+  const s = activeSnap;
+  const d = s.data;
+  const flags  = Object.values(d.storyState.flags||{}).filter(Boolean);
+  const vars   = Object.entries(d.storyState.variables||{});
+  const fired  = Object.keys(d.storyState.firedSet||{});
+  el.innerHTML = `
+    <div class="detail-header">
+      <div class="detail-version">${s.version}</div>
+      <div class="detail-meta">
+        <span class="detail-meta-item">日時<span class="detail-meta-val">${new Date(s.timestamp).toLocaleString('ja')}</span></span>
+        <span class="detail-meta-item">ハッシュ<span class="detail-meta-val" style="color:var(--cyan)">#${s.hash}</span></span>
+        <span class="detail-meta-item">サイズ<span class="detail-meta-val">${(s.size/1024).toFixed(1)}KB</span></span>
+        ${s.note?`<span class="detail-meta-item">メモ<span class="detail-meta-val">${s.note}</span></span>`:''}
+      </div>
+    </div>
+
+    <div class="data-section">
+      <div class="data-section-title">サマリー</div>
+      <div class="key-val-grid">
+        <div class="kv-item"><div class="kv-key">異常スコア</div><div class="kv-val" style="color:${(d.storyState.variables.anomaly_score||0)>=35?'var(--red)':'var(--cyan)'}">${d.storyState.variables.anomaly_score||0}</div></div>
+        <div class="kv-item"><div class="kv-key">観測者負荷</div><div class="kv-val">${d.storyState.variables.observer_load||0}</div></div>
+        <div class="kv-item"><div class="kv-key">発火イベント</div><div class="kv-val">${fired.length}</div></div>
+        <div class="kv-item"><div class="kv-key">立ちフラグ</div><div class="kv-val">${flags.length}</div></div>
+        <div class="kv-item"><div class="kv-key">閲覧履歴</div><div class="kv-val">${(d.viewHistory||[]).length}</div></div>
+        <div class="kv-item"><div class="kv-key">ユーザー数</div><div class="kv-val">${(d.users||[]).length}</div></div>
+      </div>
+    </div>
+
+    <div class="data-section">
+      <div class="data-section-title">フラグ (${flags.length}件)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:5px;">
+        ${flags.map(f=>`<span style="font-family:var(--mono);font-size:9px;padding:2px 8px;background:rgba(0,230,118,.08);border:1px solid rgba(0,230,118,.25);color:var(--green)">${f}</span>`).join('')||'<span style="font-family:var(--mono);font-size:10px;color:var(--text3)">なし</span>'}
+      </div>
+    </div>
+
+    <div class="data-section">
+      <div class="data-section-title">発火済みイベント (${fired.length}件)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        ${fired.map(id=>`<span style="font-family:var(--mono);font-size:9px;padding:2px 7px;background:rgba(0,212,255,.06);border:1px solid rgba(0,212,255,.2);color:var(--cyan)">${id}</span>`).join('')||'<span style="font-family:var(--mono);font-size:10px;color:var(--text3)">なし</span>'}
+      </div>
+    </div>
+
+    <div class="data-section">
+      <div class="data-section-title">完全データ (JSON)</div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <button class="btn" onclick="copyJson('${s.id}')">コピー</button>
+        <button class="btn" onclick="downloadSnap('${s.id}')">ダウンロード</button>
+        <button class="btn btn-red" onclick="deleteSnap('${s.id}')" style="margin-left:auto;">✕ 削除</button>
+      </div>
+      <div class="json-view">${JSON.stringify(s,null,2).replace(/</g,'&lt;')}</div>
+    </div>
+  `;
+}
+
+// ── Diff ──────────────────────────────────────────────────────
+function renderDiff() {
+  const el    = document.getElementById('diffContent');
+  const empty = document.getElementById('diffEmpty');
+  if (!activeSnap || !compareSnap) { el.style.display='none'; empty.style.display='flex'; return; }
+  empty.style.display='none'; el.style.display='block';
+  const A = activeSnap.data;
+  const B = compareSnap.data;
+
+  // Variables diff
+  const allVarKeys = new Set([...Object.keys(A.storyState.variables||{}), ...Object.keys(B.storyState.variables||{})]);
+  const varRows = [...allVarKeys].map(k => {
+    const va = A.storyState.variables[k]??'—';
+    const vb = B.storyState.variables[k]??'—';
+    const changed = va !== vb;
+    return `<div class="diff-row">
+      <div class="diff-key">${k}</div>
+      <div class="diff-old" style="${changed?'':'color:var(--text3)'}">${va}</div>
+      <div class="diff-new" style="${changed?'':'color:var(--text3)'}">${vb}</div>
+    </div>`;
+  }).join('');
+
+  // Flags diff
+  const allFlags = new Set([...Object.keys(A.storyState.flags||{}), ...Object.keys(B.storyState.flags||{})]);
+  const flagRows = [...allFlags].filter(k=>A.storyState.flags[k]||B.storyState.flags[k]).map(k => {
+    const fa = !!A.storyState.flags[k];
+    const fb = !!B.storyState.flags[k];
+    const changed = fa !== fb;
+    return `<div class="diff-row">
+      <div class="diff-key">${k}</div>
+      <div ${changed&&!fa?'class="diff-added"':fa?'class="diff-unchanged"':'class="diff-removed"'}>${fa?'✓ ON':'— OFF'}</div>
+      <div ${changed&&!fb?'class="diff-removed"':fb?'class="diff-unchanged"':'class="diff-added"'}>${fb?'✓ ON':'— OFF'}</div>
+    </div>`;
+  }).join('');
+
+  // Events diff
+  const firedA = new Set(Object.keys(A.storyState.firedSet||{}));
+  const firedB = new Set(Object.keys(B.storyState.firedSet||{}));
+  const newFired = [...firedB].filter(e=>!firedA.has(e));
+  const removedFired = [...firedA].filter(e=>!firedB.has(e));
+
+  el.innerHTML = `
+    <div class="diff-header">
+      <div style="background:var(--panel2);border:1px solid var(--border);padding:10px 14px;">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:2px;">BASE</div>
+        <div style="font-family:var(--mono);font-size:16px;color:var(--green)">${activeSnap.version}</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text3)">${new Date(activeSnap.timestamp).toLocaleString('ja')}</div>
+      </div>
+      <div class="diff-vs">⟷ DIFF</div>
+      <div style="background:var(--panel2);border:1px solid var(--border);padding:10px 14px;">
+        <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:2px;">COMPARE</div>
+        <div style="font-family:var(--mono);font-size:16px;color:var(--yellow)">${compareSnap.version}</div>
+        <div style="font-family:var(--mono);font-size:9px;color:var(--text3)">${new Date(compareSnap.timestamp).toLocaleString('ja')}</div>
+      </div>
+    </div>
+
+    <div class="diff-area">
+      <div class="diff-section">
+        <div class="diff-section-title">変数 (Variables)</div>
+        <div style="display:grid;grid-template-columns:auto 1fr 1fr;gap:6px 12px;font-family:var(--mono);font-size:10px;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid var(--border);">
+          <span style="color:var(--text3)">KEY</span><span style="color:var(--green)">BASE</span><span style="color:var(--yellow)">COMPARE</span>
+        </div>
+        ${varRows||'<div style="font-family:var(--mono);font-size:10px;color:var(--text3)">変数なし</div>'}
+      </div>
+
+      <div class="diff-section">
+        <div class="diff-section-title">フラグ (Flags)</div>
+        ${flagRows||'<div style="font-family:var(--mono);font-size:10px;color:var(--text3)">差分なし</div>'}
+      </div>
+
+      <div class="diff-section">
+        <div class="diff-section-title">新規発火イベント (COMPARE のみ)</div>
+        ${newFired.length
+          ? newFired.map(e=>`<div class="diff-added" style="font-family:var(--mono);font-size:10px;padding:2px 0;">+ ${e}</div>`).join('')
+          : '<div style="font-family:var(--mono);font-size:10px;color:var(--text3)">なし</div>'}
+      </div>
+
+      <div class="diff-section">
+        <div class="diff-section-title">消滅したイベント (BASE のみ)</div>
+        ${removedFired.length
+          ? removedFired.map(e=>`<div class="diff-removed" style="font-family:var(--mono);font-size:10px;padding:2px 0;">- ${e}</div>`).join('')
+          : '<div style="font-family:var(--mono);font-size:10px;color:var(--text3)">なし</div>'}
+      </div>
+
+      <div class="diff-section">
+        <div class="diff-section-title">閲覧履歴件数</div>
+        <div class="diff-row">
+          <div class="diff-key">viewHistory.length</div>
+          <div class="${(A.viewHistory||[]).length < (B.viewHistory||[]).length?'diff-removed':'diff-unchanged'}">${(A.viewHistory||[]).length}件</div>
+          <div class="${(B.viewHistory||[]).length > (A.viewHistory||[]).length?'diff-added':'diff-unchanged'}">${(B.viewHistory||[]).length}件</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ── Tabs ──────────────────────────────────────────────────────
+function switchMainTab(name) {
+  ['create','detail','diff'].forEach(n=>{
+    document.getElementById('mt-'+n).classList.toggle('active',n===name);
+    document.getElementById('mp-'+n).classList.toggle('active',n===name);
+  });
+  if (name==='diff') renderDiff();
+}
+
+// ── Export (JSON) ─────────────────────────────────────────────
+function exportAllSnapshots(){
+  const a=document.createElement('a');
+  a.href='data:application/json,'+encodeURIComponent(JSON.stringify(snapshots,null,2));
+  a.download='kaishoku-snapshots-'+Date.now()+'.json';
+  a.click();
+  toast('JSONエクスポート完了');
+}
+function exportCurrentState(){
+  const state = collectCurrentState();
+  const a=document.createElement('a');
+  a.href='data:application/json,'+encodeURIComponent(JSON.stringify({
+    version:'current',timestamp:Date.now(),hash:simpleHash(JSON.stringify(state)),data:state
+  },null,2));
+  a.download='kaishoku-state-'+Date.now()+'.json';
+  a.click();
+}
+
+// ── Export (ZIP) ──────────────────────────────────────────────
+// スナップショット ZIP（snapshots.json + 各スナップショット個別 JSON）
+async function exportZip() {
+  if (typeof JSZip === 'undefined') { toast('JSZip の読み込み中です。再試行してください。','red'); return; }
+  const zip = new JSZip();
+  const ts  = new Date().toISOString().slice(0,16).replace('T','-').replace(':','-');
+
+  // まとめたスナップショット一覧
+  zip.file('snapshots.json', JSON.stringify(snapshots, null, 2));
+
+  // 各スナップショットを個別ファイルに
+  const snapsDir = zip.folder('snapshots');
+  snapshots.forEach(s => {
+    const fname = `${s.version.replace(/[^a-zA-Z0-9._-]/g,'_')}-${s.hash}.json`;
+    snapsDir.file(fname, JSON.stringify(s, null, 2));
+  });
+
+  // 現在の状態も同梱
+  const state = collectCurrentState();
+  zip.file('current-state.json', JSON.stringify({
+    exportedAt: new Date().toISOString(),
+    hash: simpleHash(JSON.stringify(state)),
+    data: state
+  }, null, 2));
+
+  // README
+  zip.file('README.txt',
+    `海蝕機関 データスナップショット\n` +
+    `エクスポート日時: ${new Date().toLocaleString('ja')}\n` +
+    `スナップショット数: ${snapshots.length}\n\n` +
+    `ファイル構成:\n` +
+    `  snapshots.json       — 全スナップショット一覧\n` +
+    `  snapshots/           — 各スナップショット個別ファイル\n` +
+    `  current-state.json   — エクスポート時点の現在状態\n\n` +
+    `インポート方法: admin/data-snapshot.html の「ZIPインポート」ボタンから\n`
+  );
+
+  setImportProgress('ZIPファイル生成中...');
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+  setImportProgress('');
+
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement('a');
+  a.href     = url;
+  a.download = `kaishoku-snapshots-${ts}.zip`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  toast(`📦 ZIPエクスポート完了 (${(blob.size/1024).toFixed(1)}KB)`, 'green');
+}
+
+// 完全バックアップ ZIP（全 localStorage キー + snapshots）
+async function exportFullZip() {
+  if (typeof JSZip === 'undefined') { toast('JSZip の読み込み中です。再試行してください。','red'); return; }
+  const zip = new JSZip();
+  const ts  = new Date().toISOString().slice(0,16).replace('T','-').replace(':','-');
+
+  // スナップショット
+  zip.file('snapshots.json', JSON.stringify(snapshots, null, 2));
+
+  // 全 localStorage キー
+  const lsDir = zip.folder('localStorage');
+  const LS_KEYS = [
+    'kaishoku_story_state','kaishoku_view_history','kaishoku_users',
+    'kaishoku_current_user','kaishoku_messages','kaishoku_progress',
+    'kaishoku_bookmarks','kaishoku_reports','kaishoku_dwell_times',
+    'kaishoku_page_visits','kaishoku_classified_docs',
+    'kaishoku_map_incidents_override','kaishoku_novels_admin',
+  ];
+  const manifest = { exportedAt: new Date().toISOString(), keys: [] };
+  LS_KEYS.forEach(k => {
+    const v = localStorage.getItem(k);
+    if (v !== null) {
+      lsDir.file(k + '.json', v);
+      manifest.keys.push({ key: k, size: v.length });
+    }
+  });
+  zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+
+  zip.file('README.txt',
+    `海蝕機関 完全バックアップ\nエクスポート日時: ${new Date().toLocaleString('ja')}\n\n` +
+    `インポートには admin/data-snapshot.html の「ZIPインポート」を使用してください。\n`
+  );
+
+  setImportProgress('完全バックアップ ZIP 生成中...');
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 9 } });
+  setImportProgress('');
+
+  const url = URL.createObjectURL(blob);
+  const a   = document.createElement('a');
+  a.href     = url;
+  a.download = `kaishoku-full-backup-${ts}.zip`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  toast(`🗜 完全バックアップ ZIP完了 (${(blob.size/1024).toFixed(1)}KB)`, 'green');
+}
+
+// ── Import (JSON) ─────────────────────────────────────────────
+function importSnapshots(){ document.getElementById('importFile').click(); }
+function handleImport(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      const arr = Array.isArray(data) ? data : [data];
+      let imported = 0;
+      arr.forEach(s => { if (s.id&&s.version&&s.timestamp) { snapshots.push(s); imported++; } });
+      persistSnapshots();
+      renderSnapList();
+      toast(`✓ ${imported}件インポート`, 'green');
+    } catch(err) { toast('エラー: 不正なJSONファイル', 'red'); }
+  };
+  reader.readAsText(file);
+  e.target.value='';
+}
+
+// ── Import (ZIP) ──────────────────────────────────────────────
+function importZip(){ document.getElementById('importFileZip').click(); }
+async function handleImportZip(e) {
+  const file = e.target.files[0];
+  if (!file || typeof JSZip === 'undefined') return;
+  e.target.value = '';
+  setImportProgress('ZIPファイルを読み込み中...');
+
+  try {
+    const zip = await JSZip.loadAsync(file);
+    let imported = { snapshots: 0, localStorage: 0 };
+    const log = [];
+
+    // snapshots.json から一括インポート
+    const snapFile = zip.file('snapshots.json');
+    if (snapFile) {
+      const raw  = await snapFile.async('text');
+      const arr  = JSON.parse(raw);
+      const items = Array.isArray(arr) ? arr : [arr];
+      const existing = new Set(snapshots.map(s=>s.id));
+      items.forEach(s => {
+        if (s.id && s.version && s.timestamp && !existing.has(s.id)) {
+          snapshots.push(s);
+          imported.snapshots++;
+        }
+      });
+      log.push(`スナップショット: ${imported.snapshots}件インポート`);
+    }
+
+    // snapshots/ フォルダから個別インポート
+    const snapFolder = zip.folder('snapshots');
+    if (snapFolder) {
+      const files = [];
+      snapFolder.forEach((rel, f) => { if (!f.dir && rel.endsWith('.json')) files.push(f); });
+      const existing = new Set(snapshots.map(s=>s.id));
+      for (const f of files) {
+        try {
+          const raw = await f.async('text');
+          const s   = JSON.parse(raw);
+          if (s.id && s.version && s.timestamp && !existing.has(s.id)) {
+            snapshots.push(s);
+            imported.snapshots++;
+            existing.add(s.id);
+          }
+        } catch(err) { /* skip malformed */ }
+      }
+    }
+
+    // localStorage/ フォルダから復元
+    const lsFolder = zip.folder('localStorage');
+    if (lsFolder) {
+      const files = [];
+      lsFolder.forEach((rel, f) => { if (!f.dir && rel.endsWith('.json')) files.push({rel, f}); });
+      for (const {rel, f} of files) {
+        try {
+          const key = rel.replace('.json','');
+          const raw = await f.async('text');
+          JSON.parse(raw); // validate
+          localStorage.setItem(key, raw);
+          imported.localStorage++;
+          log.push(`localStorage: ${key} 復元`);
+        } catch(err) { /* skip */ }
+      }
+    }
+
+    persistSnapshots();
+    renderSnapList();
+    setImportProgress(log.join('\n') + `\n\n合計: スナップショット ${imported.snapshots}件, localStorage ${imported.localStorage}件 復元`);
+    toast(`📦 ZIPインポート完了 (${imported.snapshots + imported.localStorage}件)`, 'green');
+  } catch(err) {
+    setImportProgress('');
+    toast('ZIPインポートエラー: ' + err.message, 'red');
+  }
+}
+
+function setImportProgress(msg) {
+  const el = document.getElementById('importProgress');
+  if (!msg) { el.style.display='none'; return; }
+  el.style.display='block';
+  el.textContent = msg;
+}
+function downloadSnap(id) {
+  const s=snapshots.find(x=>x.id===id);
+  if (!s) return;
+  const a=document.createElement('a');
+  a.href='data:application/json,'+encodeURIComponent(JSON.stringify(s,null,2));
+  a.download='snapshot-'+s.version+'-'+s.hash+'.json';
+  a.click();
+}
+function copyJson(id) {
+  const s=snapshots.find(x=>x.id===id);
+  if (!s) return;
+  navigator.clipboard.writeText(JSON.stringify(s,null,2));
+  toast('クリップボードにコピー');
+}
+function deleteSnap(id) {
+  if (!confirm('このスナップショットを削除しますか？')) return;
+  snapshots=snapshots.filter(s=>s.id!==id);
+  if (activeSnap&&activeSnap.id===id) activeSnap=null;
+  if (compareSnap&&compareSnap.id===id) compareSnap=null;
+  persistSnapshots();
+  renderSnapList();
+  renderDetail();
+  toast('削除しました','red');
+}
+function persistSnapshots(){ localStorage.setItem(SNAP_KEY,JSON.stringify(snapshots)); }
+
+// ── Toast ──────────────────────────────────────────────────────
+function toast(msg,type='info') {
+  const el=document.createElement('div');
+  el.className='toast-item';
+  const cols={green:'var(--green-dim);border-color:var(--green);color:var(--green)',
+              red:'var(--red-dim);border-color:var(--red);color:var(--red)',
+              info:'var(--panel2);border-color:var(--border2);color:var(--text2)'};
+  el.style.cssText='background:'+cols[type];
+  el.textContent=msg;
+  document.getElementById('toastWrap').appendChild(el);
+  setTimeout(()=>el.remove(),3000);
+}
+
+loadSnapshots();
+setInterval(updatePreview, 5000);
+</script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "KaishokuPersonnel",
+  "description": "機関員データのスキーマ",
+  "type": "object",
+  "required": ["id", "name", "division", "rank"],
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^K-\\d{3}-\\d+$",
+      "description": "職員ID (例: K-001-234)"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "division": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rank": {
+      "type": "string"
+    },
+    "age": {
+      "type": "integer",
+      "minimum": 18,
+      "maximum": 80
+    },
+    "joinDate":       { "type": "string" },
+    "specialization": { "type": "string" },
+    "resume": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "psychEval": {
+      "type": "object",
+      "properties": {
+        "status": { "type": "string" },
+        "score":  { "type": "number", "minimum": 0, "maximum": 100 },
+        "notes":  { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "diary": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "date":  { "type": "string" },
+          "entry": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    }
+  }
+}

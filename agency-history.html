@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title>機関の歴史 — 海蝕機関</title>
+  <link rel="icon" type="image/png" href="./images/favicon.png">
+  <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/sidebar.css">
+  <link rel="stylesheet" href="./css/mobile.css">
+  <style>
+    /* ── Era sections ── */
+    .ah-era {
+      margin-bottom: 4rem;
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity .5s ease, transform .5s ease;
+    }
+    .ah-era.ah-visible { opacity: 1; transform: translateY(0); }
+
+    .ah-era-header {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .ah-era-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .7rem;
+      letter-spacing: .12em;
+      border: 1px solid;
+      padding: .2rem .8rem;
+      text-transform: uppercase;
+      flex-shrink: 0;
+    }
+    .ah-era-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: white;
+      text-transform: uppercase;
+    }
+    .ah-era-line {
+      flex: 1;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(255,255,255,.15), transparent);
+    }
+
+    /* ── Entries ── */
+    .ah-entries { display: flex; flex-direction: column; gap: 0; }
+
+    .ah-entry {
+      display: flex;
+      gap: 0;
+      opacity: 0;
+      transform: translateX(-16px);
+      transition: opacity .4s ease, transform .4s ease;
+    }
+    .ah-entry.ah-visible { opacity: 1; transform: translateX(0); }
+
+    /* left column: year + dot + line */
+    .ah-connector {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 100px;
+      flex-shrink: 0;
+      padding-top: .5rem;
+    }
+    .ah-year-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .72rem;
+      color: var(--era-color, var(--primary));
+      text-align: center;
+      margin-bottom: .4rem;
+      white-space: nowrap;
+    }
+    .ah-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--era-color, var(--muted-foreground));
+      border: 2px solid var(--background);
+      box-shadow: 0 0 0 2px var(--era-color, var(--muted-foreground));
+      flex-shrink: 0;
+      margin-bottom: 0;
+      z-index: 1;
+    }
+    .ah-dot--highlight {
+      width: 14px; height: 14px;
+      box-shadow: 0 0 12px var(--era-color, var(--primary));
+      animation: dot-pulse 2.5s infinite;
+    }
+    @keyframes dot-pulse {
+      0%,100% { box-shadow: 0 0 8px var(--era-color, var(--primary)); }
+      50%      { box-shadow: 0 0 18px var(--era-color, var(--primary)); }
+    }
+    .ah-vline {
+      flex: 1;
+      width: 1px;
+      background: linear-gradient(180deg, var(--era-color, rgba(255,255,255,.15)), rgba(255,255,255,.05));
+      min-height: 40px;
+    }
+
+    /* right column: card */
+    .ah-card {
+      flex: 1;
+      background: rgba(0,0,0,.3);
+      border: 1px solid rgba(255,255,255,.08);
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1.25rem;
+      margin-left: 1.5rem;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .ah-card:hover {
+      border-color: rgba(255,255,255,.16);
+      box-shadow: 0 4px 20px rgba(0,0,0,.3);
+    }
+    .ah-card--highlight {
+      border-color: var(--era-color, var(--primary));
+    }
+    .ah-card-top {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      margin-bottom: .5rem;
+    }
+    .ah-month {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .72rem;
+      color: var(--muted-foreground);
+    }
+    .ah-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .65rem;
+      padding: .15rem .55rem;
+      border: 1px solid;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+    .ah-title {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 600;
+      color: white;
+      margin-bottom: .6rem;
+      text-transform: uppercase;
+    }
+    .ah-body {
+      color: var(--muted-foreground);
+      font-size: .875rem;
+      line-height: 1.75;
+    }
+
+    /* redacted */
+    .ah-redacted-block {
+      padding: .75rem;
+      background: rgba(0,0,0,.3);
+      border: 1px solid rgba(239,68,68,.2);
+    }
+    .ah-redacted-line {
+      height: 10px;
+      background: rgba(239,68,68,.25);
+      margin-bottom: .5rem;
+      width: 100%;
+    }
+    .ah-redact-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .68rem;
+      color: rgba(239,68,68,.7);
+      text-align: center;
+      margin-top: .5rem;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+    }
+    .ah-lock-note {
+      margin-top: .6rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .68rem;
+      color: rgba(239,68,68,.6);
+    }
+
+    /* filter chips */
+    .ah-filters {
+      display: flex;
+      gap: .5rem;
+      flex-wrap: wrap;
+      margin-bottom: 2.5rem;
+    }
+    .ah-chip {
+      padding: .3rem .85rem;
+      background: rgba(0,0,0,.3);
+      border: 1px solid rgba(255,255,255,.1);
+      color: var(--muted-foreground);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .7rem;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .ah-chip.active, .ah-chip:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: rgba(0,255,255,.07);
+    }
+
+    /* stats */
+    .ah-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+      gap: .75rem;
+      margin-bottom: 2.5rem;
+    }
+    .ah-stat {
+      background: rgba(0,0,0,.3);
+      border: 1px solid rgba(255,255,255,.07);
+      padding: .75rem 1rem;
+      text-align: center;
+    }
+    .ah-stat .n {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .ah-stat .l {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: .58rem;
+      color: var(--muted-foreground);
+      text-transform: uppercase;
+      margin-top: .1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar"></aside>
+    <button class="mobile-menu-toggle">
+      <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+    <div class="mobile-menu-overlay"></div>
+
+    <main class="main-content scanline">
+      <div class="container animate-fadeIn">
+
+        <div style="border-left:4px solid var(--primary);padding-left:1rem;margin-bottom:2.5rem;">
+          <h1 style="font-size:2.5rem;font-family:'Space Grotesk',sans-serif;font-weight:700;color:white;text-transform:uppercase;">
+            機関の歴史
+          </h1>
+          <p class="font-mono" style="font-size:.875rem;margin-top:.5rem;color:var(--muted-foreground);">
+            AGENCY HISTORY — 1945〜2026 // 創設から現在まで
+          </p>
+        </div>
+
+        <div class="ah-stats" id="ahStats"></div>
+
+        <div class="ah-filters">
+          <button class="ah-chip active" data-erafilter="all">全時代</button>
+          <button class="ah-chip" data-erafilter="設立前史">設立前史</button>
+          <button class="ah-chip" data-erafilter="創設期">創設期</button>
+          <button class="ah-chip" data-erafilter="拡張期">拡張期</button>
+          <button class="ah-chip" data-erafilter="近代化">近代化</button>
+          <button class="ah-chip" data-erafilter="現代">現代</button>
+        </div>
+
+        <div id="history-root"></div>
+
+      </div>
+    </main>
+  </div>
+
+  <script src="./js/core/error-handler.js" defer></script>
+  <script src="./js/data/data-bundle.js" defer></script>
+  <script src="./js/core/loading.js" defer></script>
+  <script src="./js/core/sidebar.js" defer></script>
+  <script src="./js/core/bookmark.js" defer></script>
+  <script src="./js/core/main.js" defer></script>
+  <script src="./js/core/modal.js" defer></script>
+  <script src="./js/core/progress.js" defer></script>
+  <script src="./js/core/story-engine.js" defer></script>
+  <script src="./js/core/notifications.js" defer></script>
+  
+  <script src="./js/pages/agency-history.js" defer></script>
+  <script>
+    // stats
+    (function() {
+      var totalEntries = document.querySelectorAll('.ah-entry').length;
+      // count after JS renders
+      setTimeout(function() {
+        var entries = document.querySelectorAll('.ah-entry').length;
+        var highlights = document.querySelectorAll('.ah-card--highlight').length;
+        var classified = document.querySelectorAll('.ah-redacted-block').length;
+        var el = document.getElementById('ahStats');
+        if (!el) return;
+        el.innerHTML =
+          '<div class="ah-stat"><div class="n">' + entries + '</div><div class="l">記録総数</div></div>' +
+          '<div class="ah-stat"><div class="n" style="color:#ef4444">' + highlights + '</div><div class="l">重大事案</div></div>' +
+          '<div class="ah-stat"><div class="n" style="color:rgba(239,68,68,.6)">' + classified + '</div><div class="l">機密指定</div></div>' +
+          '<div class="ah-stat"><div class="n" style="color:#f59e0b">1968</div><div class="l">設立年</div></div>' +
+          '<div class="ah-stat"><div class="n" style="color:var(--primary)">58年</div><div class="l">機関史</div></div>';
+      }, 100);
+
+      // Era filter
+      document.querySelectorAll('.ah-chip[data-erafilter]').forEach(function(chip) {
+        chip.addEventListener('click', function() {
+          document.querySelectorAll('.ah-chip').forEach(function(c){ c.classList.remove('active'); });
+          chip.classList.add('active');
+          var f = chip.dataset.erafilter;
+          document.querySelectorAll('.ah-era').forEach(function(era) {
+            var title = era.querySelector('.ah-era-title');
+            if (!title) return;
+            era.style.display = (f === 'all' || title.textContent.includes(f)) ? '' : 'none';
+          });
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title>アクセス履歴 - 海蝕機関</title>
+  <link rel="icon" type="image/png" href="./images/favicon.png">
+  <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/sidebar.css">
+  <link rel="stylesheet" href="./css/mobile.css">
+  <style>
+    /* ── タブ ── */
+    .tab-bar {
+      display: flex;
+      gap: 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      margin-bottom: 2rem;
+    }
+    .tab-btn {
+      padding: 0.75rem 1.75rem;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--muted-foreground);
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: -1px;
+    }
+    .tab-btn:hover { color: var(--foreground); }
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+    .tab-count {
+      background: rgba(0,255,255,0.12);
+      color: var(--primary);
+      border-radius: 9999px;
+      padding: 0 0.45rem;
+      font-size: 0.65rem;
+      line-height: 1.6;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* ── ツールバー ── */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+    .toolbar-left {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      color: var(--muted-foreground);
+    }
+    .toolbar-left .num { color: var(--primary); font-weight: 700; }
+    .clear-btn {
+      padding: 0.4rem 1rem;
+      background: rgba(239,68,68,0.08);
+      border: 1px solid rgba(239,68,68,0.25);
+      color: rgba(239,68,68,0.7);
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      transition: all 0.2s;
+    }
+    .clear-btn:hover {
+      background: rgba(239,68,68,0.15);
+      border-color: var(--destructive);
+      color: var(--destructive);
+    }
+
+    /* ── フィルターバー ── */
+    .filter-bar {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1.5rem;
+    }
+    .filter-chip {
+      padding: 0.3rem 0.85rem;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--muted-foreground);
+      cursor: pointer;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      transition: all 0.2s;
+    }
+    .filter-chip.active, .filter-chip:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: rgba(0,255,255,0.07);
+    }
+
+    /* ── 閲覧履歴リスト ── */
+    .view-list {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    /* 日付グループ */
+    .date-group { margin-bottom: 1.5rem; }
+    .date-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.68rem;
+      color: rgba(255,255,255,0.3);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      margin-bottom: 0.25rem;
+    }
+
+    .view-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      padding: 0.75rem 1rem;
+      border-left: 2px solid transparent;
+      cursor: pointer;
+      transition: all 0.18s;
+      text-decoration: none;
+      color: inherit;
+    }
+    .view-item:hover {
+      background: rgba(255,255,255,0.03);
+      border-left-color: var(--primary);
+    }
+    .view-item-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 2px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .view-item-icon svg { width: 16px; height: 16px; }
+    .view-item-body { flex: 1; min-width: 0; }
+    .view-item-name {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--foreground);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .view-item-meta {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.15rem;
+    }
+    .view-type-badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.6rem;
+      text-transform: uppercase;
+      padding: 0.1rem 0.4rem;
+      border: 1px solid currentColor;
+      opacity: 0.75;
+    }
+    .view-item-time {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: rgba(255,255,255,0.25);
+    }
+    .view-item-id {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.65rem;
+      color: rgba(255,255,255,0.2);
+    }
+    .view-item-arrow {
+      color: rgba(255,255,255,0.15);
+      flex-shrink: 0;
+      transition: transform 0.15s, color 0.15s;
+    }
+    .view-item:hover .view-item-arrow {
+      color: var(--primary);
+      transform: translateX(3px);
+    }
+
+    /* ── 検索履歴 ── */
+    .search-history-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .search-item {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.65rem 1rem;
+      background: rgba(0,0,0,0.2);
+      border: 1px solid rgba(255,255,255,0.07);
+      cursor: pointer;
+      transition: all 0.18s;
+      text-decoration: none;
+    }
+    .search-item:hover {
+      border-color: var(--primary);
+      background: rgba(0,255,255,0.04);
+    }
+    .search-item-icon {
+      color: rgba(255,255,255,0.2);
+      flex-shrink: 0;
+    }
+    .search-item:hover .search-item-icon { color: var(--primary); }
+    .search-item-query {
+      flex: 1;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+      color: var(--foreground);
+    }
+    .search-item-del {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.15);
+      cursor: pointer;
+      font-size: 0.75rem;
+      padding: 0.2rem 0.4rem;
+      transition: color 0.15s;
+      flex-shrink: 0;
+    }
+    .search-item-del:hover { color: var(--destructive); }
+
+    /* ── 空状態 ── */
+    .empty-state {
+      text-align: center;
+      padding: 5rem 2rem;
+      color: var(--muted-foreground);
+    }
+    .empty-state svg {
+      margin: 0 auto 1.25rem;
+      opacity: 0.15;
+      display: block;
+    }
+    .empty-state p {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+    }
+    .empty-state .hint {
+      font-size: 0.72rem;
+      margin-top: 0.5rem;
+      opacity: 0.5;
+    }
+
+    /* ── 統計バー ── */
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+      gap: 0.75rem;
+      margin-bottom: 2rem;
+    }
+    .stat-tile {
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.07);
+      padding: 0.75rem 1rem;
+      text-align: center;
+    }
+    .stat-tile .n {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .stat-tile .l {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.58rem;
+      color: var(--muted-foreground);
+      text-transform: uppercase;
+      margin-top: 0.1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar"></aside>
+    <button class="mobile-menu-toggle">
+      <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+    <div class="mobile-menu-overlay"></div>
+
+    <main class="main-content scanline">
+      <div class="container">
+        <div class="space-y-12 animate-fadeIn">
+
+          <!-- ヘッダー -->
+          <div style="border-left:4px solid var(--primary);padding-left:1rem;">
+            <h1 style="font-size:2.5rem;font-family:'Space Grotesk',sans-serif;font-weight:700;color:white;text-transform:uppercase;">
+              アクセス履歴
+            </h1>
+            <p class="font-mono text-muted" style="font-size:0.875rem;margin-top:0.5rem;">
+              ACCESS LOG — 閲覧履歴 / 検索履歴
+            </p>
+          </div>
+
+          <!-- 統計 -->
+          <div class="stats-strip" id="statsStrip"></div>
+
+          <!-- タブ -->
+          <div>
+            <div class="tab-bar">
+              <button class="tab-btn active" data-tab="view">
+                <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                </svg>
+                閲覧履歴
+                <span class="tab-count" id="viewCount">0</span>
+              </button>
+              <button class="tab-btn" data-tab="search">
+                <svg width="13" height="13" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>
+                </svg>
+                検索履歴
+                <span class="tab-count" id="searchCount">0</span>
+              </button>
+            </div>
+
+            <!-- 閲覧履歴パネル -->
+            <div class="tab-panel active" id="panelView">
+              <div class="toolbar">
+                <div class="toolbar-left">
+                  <span class="num" id="viewTotal">0</span> 件のアクセス記録
+                </div>
+                <button class="clear-btn" id="clearViewBtn">履歴を消去</button>
+              </div>
+
+              <div class="filter-bar" id="viewFilterBar">
+                <button class="filter-chip active" data-vtype="all">全て</button>
+                <button class="filter-chip" data-vtype="mission">収束案件</button>
+                <button class="filter-chip" data-vtype="entity">海蝕実体</button>
+                <button class="filter-chip" data-vtype="module">モジュール</button>
+                <button class="filter-chip" data-vtype="location">場所</button>
+                <button class="filter-chip" data-vtype="personnel">人員</button>
+              </div>
+
+              <div id="viewList"></div>
+            </div>
+
+            <!-- 検索履歴パネル -->
+            <div class="tab-panel" id="panelSearch">
+              <div class="toolbar">
+                <div class="toolbar-left">
+                  <span class="num" id="searchTotal">0</span> 件の検索記録
+                </div>
+                <button class="clear-btn" id="clearSearchBtn">履歴を消去</button>
+              </div>
+              <div class="search-history-grid" id="searchList"></div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </main>
+  </div>
+  <script src="./js/core/error-handler.js" defer></script>
+  <script src="./js/data/data-bundle.js" defer></script>
+
+  <script src="./js/core/loading.js" defer></script>
+  <script src="./js/core/sidebar.js" defer></script>
+  <script src="./js/core/bookmark.js" defer></script>
+  <script src="./js/core/main.js" defer></script>
+  <script src="./js/core/modal.js" defer></script>
+  <script src="./js/core/progress.js" defer></script>
+  <script src="./js/core/level-messages.js" defer></script>
+  <script src="./js/core/daily-login.js" defer></script>
+  <script src="./js/core/view-history.js" defer></script>
+  <script src="./js/core/story-engine.js" defer></script>
+  <script src="./js/core/notifications.js" defer></script>
+  
+  <script>
+    // ── アクセスチェック ────────────────────────────────────────────────────
+    if (!ProgressSystem.checkPageAccess('history.html')) {
+      ModalSystem.warning('このページにアクセスするには LEVEL 1 が必要です。', 'ACCESS DENIED')
+        .then(function() { window.location.href = './dashboard.html'; });
+    }
+
+    // ── 定数 ────────────────────────────────────────────────────────────────
+    var SEARCH_KEY = 'kaishoku_search_history';
+
+    // ── 状態 ────────────────────────────────────────────────────────────────
+    var viewTypeFilter = 'all';
+
+    // ── ユーティリティ ───────────────────────────────────────────────────────
+    function esc(s) {
+      return String(s).split('&').join('&amp;').split('<').join('&lt;').split('>').join('&gt;').split('"').join('&quot;');
+    }
+
+    function formatTime(ts) {
+      var d = new Date(ts);
+      var h = d.getHours().toString().padStart(2,'0');
+      var m = d.getMinutes().toString().padStart(2,'0');
+      return h + ':' + m;
+    }
+
+    function formatDateKey(ts) {
+      var d = new Date(ts);
+      var today  = new Date(); today.setHours(0,0,0,0);
+      var yest   = new Date(today); yest.setDate(yest.getDate()-1);
+      var target = new Date(d); target.setHours(0,0,0,0);
+      if (target.getTime() === today.getTime())  return '今日';
+      if (target.getTime() === yest.getTime())   return '昨日';
+      return d.getFullYear() + '年' + (d.getMonth()+1) + '月' + d.getDate() + '日';
+    }
+
+    function loadSearchHistory() {
+      try { return JSON.parse(localStorage.getItem(SEARCH_KEY)) || []; } catch(e) { return []; }
+    }
+    function saveSearchHistory(arr) { localStorage.setItem(SEARCH_KEY, JSON.stringify(arr)); }
+
+    // ── 統計 ────────────────────────────────────────────────────────────────
+    function renderStats() {
+      var vh = ViewHistory.load();
+      var sh = loadSearchHistory();
+      var counts = { mission:0, entity:0, module:0, location:0, personnel:0 };
+      vh.forEach(function(h){ if (counts[h.type] !== undefined) counts[h.type]++; });
+
+      var strip = document.getElementById('statsStrip');
+      strip.innerHTML =
+        '<div class="stat-tile"><div class="n">' + vh.length + '</div><div class="l">閲覧総数</div></div>'
+      + '<div class="stat-tile"><div class="n" style="color:var(--destructive)">'  + counts.mission   + '</div><div class="l">収束案件</div></div>'
+      + '<div class="stat-tile"><div class="n" style="color:rgb(139,92,246)">'     + counts.entity    + '</div><div class="l">海蝕実体</div></div>'
+      + '<div class="stat-tile"><div class="n" style="color:var(--primary)">'      + counts.module    + '</div><div class="l">モジュール</div></div>'
+      + '<div class="stat-tile"><div class="n" style="color:rgb(16,185,129)">'     + counts.location  + '</div><div class="l">場所</div></div>'
+      + '<div class="stat-tile"><div class="n" style="color:rgb(245,158,11)">'     + counts.personnel + '</div><div class="l">人員</div></div>'
+      + '<div class="stat-tile"><div class="n" style="color:rgba(255,255,255,0.5)">' + sh.length      + '</div><div class="l">検索回数</div></div>';
+    }
+
+    // ── 閲覧履歴レンダリング ──────────────────────────────────────────────────
+    function renderViewHistory() {
+      var all  = ViewHistory.load();
+      var data = viewTypeFilter === 'all' ? all : all.filter(function(h){ return h.type === viewTypeFilter; });
+
+      document.getElementById('viewCount').textContent  = all.length;
+      document.getElementById('viewTotal').textContent  = data.length;
+
+      var list = document.getElementById('viewList');
+      if (data.length === 0) {
+        list.innerHTML = '<div class="empty-state">'
+          + '<svg width="52" height="52" fill="none" stroke="currentColor" viewBox="0 0 24 24">'
+          + '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>'
+          + '</svg><p>閲覧履歴がありません</p>'
+          + '<p class="hint">詳細ページを閲覧すると記録されます</p></div>';
+        return;
+      }
+
+      // 日付グループに分ける
+      var groups = {};
+      data.forEach(function(h) {
+        var dk = formatDateKey(h.at);
+        if (!groups[dk]) groups[dk] = [];
+        groups[dk].push(h);
+      });
+
+      var html = '';
+      Object.keys(groups).forEach(function(dk) {
+        html += '<div class="date-group"><div class="date-label">' + esc(dk) + '</div>';
+        groups[dk].forEach(function(h) {
+          var meta  = ViewHistory.getTypeMeta(h.type);
+          var color = meta.color;
+          var href  = './' + meta.href + '?id=' + encodeURIComponent(h.id);
+          html += '<a class="view-item" href="' + href + '">'
+            + '<div class="view-item-icon" style="background:' + color + '18;border:1px solid ' + color + '40;">'
+            + '<svg fill="none" stroke="' + color + '" viewBox="0 0 24 24" width="16" height="16">'
+            + '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="' + meta.icon + '"/>'
+            + '</svg></div>'
+            + '<div class="view-item-body">'
+            +   '<div class="view-item-name">' + esc(h.name) + '</div>'
+            +   '<div class="view-item-meta">'
+            +     '<span class="view-type-badge" style="color:' + color + ';border-color:' + color + '60;">' + esc(meta.label) + '</span>'
+            +     '<span class="view-item-id">' + esc(h.id) + '</span>'
+            +   '</div>'
+            + '</div>'
+            + '<span class="view-item-time">' + formatTime(h.at) + '</span>'
+            + '<svg class="view-item-arrow" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">'
+            + '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>'
+            + '</a>';
+        });
+        html += '</div>';
+      });
+      list.innerHTML = html;
+    }
+
+    // ── 検索履歴レンダリング ──────────────────────────────────────────────────
+    function renderSearchHistory() {
+      var data = loadSearchHistory();
+      document.getElementById('searchCount').textContent = data.length;
+      document.getElementById('searchTotal').textContent = data.length;
+
+      var list = document.getElementById('searchList');
+      if (data.length === 0) {
+        list.innerHTML = '<div class="empty-state">'
+          + '<svg width="52" height="52" fill="none" stroke="currentColor" viewBox="0 0 24 24">'
+          + '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/>'
+          + '</svg><p>検索履歴がありません</p>'
+          + '<p class="hint">検索ページで検索すると記録されます</p></div>';
+        return;
+      }
+
+      var html = '';
+      data.forEach(function(q, idx) {
+        html += '<div class="search-item" onclick="goSearch(\'' + esc(q) + '\')">'
+          + '<svg class="search-item-icon" width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24">'
+          + '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z"/></svg>'
+          + '<span class="search-item-query">' + esc(q) + '</span>'
+          + '<button class="search-item-del" onclick="event.stopPropagation();delSearch(' + idx + ')" title="削除">\u2715</button>'
+          + '</div>';
+      });
+      list.innerHTML = html;
+    }
+
+    function goSearch(q) {
+      window.location.href = './search.html#q=' + encodeURIComponent(q);
+    }
+
+    function delSearch(idx) {
+      var h = loadSearchHistory();
+      h.splice(idx, 1);
+      saveSearchHistory(h);
+      renderSearchHistory();
+      renderStats();
+    }
+
+    // ── イベントリスナー ─────────────────────────────────────────────────────
+    document.querySelectorAll('.tab-btn').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+        document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById('panel' + btn.dataset.tab.charAt(0).toUpperCase() + btn.dataset.tab.slice(1)).classList.add('active');
+      });
+    });
+
+    document.querySelectorAll('.filter-chip').forEach(function(chip) {
+      chip.addEventListener('click', function() {
+        document.querySelectorAll('.filter-chip').forEach(function(c){ c.classList.remove('active'); });
+        chip.classList.add('active');
+        viewTypeFilter = chip.dataset.vtype;
+        renderViewHistory();
+      });
+    });
+
+    document.getElementById('clearViewBtn').addEventListener('click', function() {
+      ModalSystem.confirm('閲覧履歴をすべて削除しますか？', '確認').then(function(ok) {
+        if (!ok) return;
+        ViewHistory.clear();
+        renderViewHistory();
+        renderStats();
+      });
+    });
+
+    document.getElementById('clearSearchBtn').addEventListener('click', function() {
+      ModalSystem.confirm('検索履歴をすべて削除しますか？', '確認').then(function(ok) {
+        if (!ok) return;
+        saveSearchHistory([]);
+        renderSearchHistory();
+        renderStats();
+      });
+    });
+
+    // ── 初期描画 ────────────────────────────────────────────────────────────
+    renderStats();
+    renderViewHistory();
+    renderSearchHistory();
+  </script>
+</body>
+</html>

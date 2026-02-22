@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ストーリーエンジン管理 — 海蝕機関</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090f;--panel:#0c1018;--panel2:#111620;--border:#1a2030;--border2:#263040;
+  --cyan:#00d4ff;--cyan-dim:#001c28;--green:#00e676;--green-dim:#002810;
+  --yellow:#ffd740;--yellow-dim:#2a2000;--red:#ff5252;--red-dim:#2a0808;
+  --purple:#ce93d8;--orange:#ff9800;--blue:#4fc3f7;
+  --text:#cdd6e8;--text2:#7a8aa0;--text3:#445060;
+  --mono:'Share Tech Mono',monospace;--sans:'Noto Sans JP',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;min-height:100vh;display:flex;flex-direction:column;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(168,85,247,.008) 3px,rgba(168,85,247,.008) 4px);}
+
+.hdr{background:var(--panel);border-bottom:1px solid var(--border2);padding:0 24px;height:50px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--purple);box-shadow:0 0 8px var(--purple);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.hdr-title{font-family:var(--mono);font-size:12px;color:var(--purple);letter-spacing:.2em;}
+.hdr-sub{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.hdr-sep{flex:1;}
+.btn{background:none;border:1px solid var(--border2);color:var(--text2);font-family:var(--mono);font-size:10px;padding:6px 14px;cursor:pointer;letter-spacing:.08em;transition:all .15s;}
+.btn:hover{border-color:var(--purple);color:var(--purple);}
+.btn-red{background:var(--red-dim);border-color:var(--red);color:var(--red);}
+.btn-red:hover{background:#400808;}
+.btn-green{background:var(--green-dim);border-color:var(--green);color:var(--green);}
+.btn-yellow{background:var(--yellow-dim);border-color:var(--yellow);color:var(--yellow);}
+.btn-purple{background:rgba(168,85,247,.1);border-color:var(--purple);color:var(--purple);}
+
+.layout{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:auto 1fr;gap:0;height:calc(100vh - 50px);overflow:hidden;}
+
+/* Status panel (top full) */
+.status-bar{grid-column:1/-1;background:var(--panel);border-bottom:1px solid var(--border);padding:0;display:flex;overflow:hidden;}
+.status-cell{flex:1;padding:12px 20px;border-right:1px solid var(--border);display:flex;flex-direction:column;gap:3px;}
+.status-cell:last-child{border-right:none;}
+.status-num{font-family:var(--mono);font-size:22px;line-height:1;}
+.status-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;}
+
+/* Left panel: events */
+.left-panel{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
+.panel-hdr{padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.panel-title{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;flex:1;}
+.panel-body{flex:1;overflow-y:auto;padding:0;}
+
+/* Event item */
+.ev-item{border-bottom:1px solid var(--border);padding:10px 16px;display:grid;grid-template-columns:8px 1fr auto;gap:8px 10px;align-items:start;}
+.ev-item:hover{background:var(--panel2);}
+.ev-dot{width:8px;height:8px;border-radius:50%;margin-top:3px;flex-shrink:0;}
+.ev-name{font-size:11px;color:var(--text);line-height:1.4;margin-bottom:2px;}
+.ev-id{font-family:var(--mono);font-size:9px;color:var(--text3);}
+.ev-type{font-family:var(--mono);font-size:8px;padding:1px 5px;border-radius:2px;align-self:start;}
+.ev-actions{grid-column:1/-1;display:flex;gap:5px;margin-top:4px;}
+.ev-btn{background:none;border:1px solid var(--border2);color:var(--text3);font-family:var(--mono);font-size:9px;padding:2px 8px;cursor:pointer;transition:all .1s;}
+.ev-btn-fire{border-color:rgba(0,230,118,.3);color:var(--green);}
+.ev-btn-fire:hover{background:rgba(0,230,118,.1);}
+.ev-btn-reset{border-color:rgba(255,82,82,.3);color:var(--red);}
+.ev-btn-reset:hover{background:rgba(255,82,82,.1);}
+.ev-time{font-family:var(--mono);font-size:8px;color:var(--text3);margin-top:2px;}
+
+/* Right panel */
+.right-panel{display:flex;flex-direction:column;overflow:hidden;}
+.right-tabs{display:flex;background:var(--panel);border-bottom:1px solid var(--border);}
+.rtab{padding:9px 16px;font-family:var(--mono);font-size:10px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.06em;}
+.rtab:hover{color:var(--text);}
+.rtab.active{color:var(--purple);border-bottom-color:var(--purple);}
+.rtab-body{flex:1;overflow-y:auto;padding:16px;}
+.rtab-pane{display:none;}
+.rtab-pane.active{display:block;}
+
+/* State editor */
+.state-section{margin-bottom:20px;}
+.state-section-title{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;padding-bottom:6px;border-bottom:1px solid var(--border);margin-bottom:10px;}
+.var-row{display:grid;grid-template-columns:1fr auto auto;gap:6px;align-items:center;margin-bottom:6px;}
+.var-key{font-family:var(--mono);font-size:10px;color:var(--text2);}
+.var-input{background:var(--panel2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:3px 8px;width:80px;outline:none;text-align:right;}
+.var-input:focus{border-color:var(--purple);}
+.var-set-btn{background:none;border:1px solid var(--border2);color:var(--text3);font-family:var(--mono);font-size:9px;padding:3px 8px;cursor:pointer;}
+.var-set-btn:hover{border-color:var(--purple);color:var(--purple);}
+.flag-toggle{display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);}
+.flag-name{font-family:var(--mono);font-size:10px;color:var(--text2);}
+.toggle-btn{width:36px;height:19px;border-radius:10px;background:var(--border2);border:none;cursor:pointer;position:relative;transition:background .2s;}
+.toggle-btn.on{background:var(--green);}
+.toggle-btn::after{content:'';position:absolute;top:2px;left:2px;width:15px;height:15px;border-radius:50%;background:white;transition:left .2s;}
+.toggle-btn.on::after{left:19px;}
+
+/* Log */
+.log-area{font-family:var(--mono);font-size:10px;line-height:1.7;padding:10px;}
+.log-row{display:flex;gap:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,.03);}
+.log-time{color:var(--text3);flex-shrink:0;width:80px;}
+.log-event{color:var(--text2);}
+.log-type-chat{color:var(--cyan);}
+.log-type-page{color:var(--green);}
+.log-type-threshold{color:var(--red);}
+.log-type-time{color:var(--blue);}
+.log-type-sequence{color:var(--orange);}
+.log-type-history{color:var(--purple);}
+.no-log{font-family:var(--mono);font-size:10px;color:var(--text3);padding:20px;text-align:center;}
+
+/* Keyword tester */
+.tester-area{margin-bottom:16px;}
+.tester-label{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px;}
+.tester-row{display:flex;gap:6px;}
+.tester-input{flex:1;background:var(--panel2);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 10px;outline:none;}
+.tester-input:focus{border-color:var(--purple);}
+.tester-result{background:var(--panel2);border:1px solid var(--border);padding:10px;font-family:var(--mono);font-size:10px;margin-top:8px;min-height:50px;color:var(--text2);line-height:1.6;}
+
+/* Phase indicator */
+.phase-bar{display:flex;gap:1px;margin-bottom:16px;}
+.phase-step{flex:1;padding:8px 10px;background:var(--panel2);border:1px solid var(--border);text-align:center;}
+.phase-step.active{border-color:var(--purple);background:rgba(168,85,247,.1);}
+.phase-step.done{border-color:var(--green);background:rgba(0,230,118,.06);}
+.phase-num{font-family:var(--mono);font-size:18px;color:var(--text3);}
+.phase-num.active{color:var(--purple);}
+.phase-num.done{color:var(--green);}
+.phase-lbl{font-family:var(--mono);font-size:8px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;}
+
+/* Toast */
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:1000;display:flex;flex-direction:column;gap:5px;}
+.toast-item{padding:8px 14px;font-family:var(--mono);font-size:10px;border:1px solid;animation:fi .15s;}
+@keyframes fi{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-dot"></div>
+  <div class="hdr-title">ストーリーエンジン管理</div>
+  <div class="hdr-sub">STORY ENGINE ADMIN</div>
+  <div class="hdr-sep"></div>
+  <button class="btn" onclick="refreshAll()">⟳ 更新</button>
+  <button class="btn btn-red" onclick="resetAll()">⚠ 全リセット</button>
+  <a href="./admin-hub.html" class="btn" style="margin-left:6px;">← HUB</a>
+</div>
+
+<div class="layout">
+
+  <!-- Status bar -->
+  <div class="status-bar">
+    <div class="status-cell">
+      <div class="status-num" id="ss-score" style="color:var(--red)">0</div>
+      <div class="status-lbl">異常スコア</div>
+    </div>
+    <div class="status-cell">
+      <div class="status-num" id="ss-load" style="color:var(--orange)">0</div>
+      <div class="status-lbl">観測者負荷</div>
+    </div>
+    <div class="status-cell">
+      <div class="status-num" id="ss-fired" style="color:var(--yellow)">0</div>
+      <div class="status-lbl">発火イベント</div>
+    </div>
+    <div class="status-cell">
+      <div class="status-num" id="ss-flags" style="color:var(--green)">0</div>
+      <div class="status-lbl">立ちフラグ</div>
+    </div>
+    <div class="status-cell" style="flex:2">
+      <div id="ss-phase" style="display:flex;gap:1px;"></div>
+      <div class="status-lbl">ストーリーフェーズ</div>
+    </div>
+  </div>
+
+  <!-- Left: Events -->
+  <div class="left-panel">
+    <div class="panel-hdr">
+      <div class="panel-title" style="color:var(--yellow);">イベント一覧</div>
+      <div style="display:flex;gap:5px;">
+        <select id="evFilter" onchange="renderEvents()" style="background:var(--panel2);border:1px solid var(--border2);color:var(--text2);font-family:var(--mono);font-size:9px;padding:3px 6px;cursor:pointer;">
+          <option value="">全て</option>
+          <option value="chat">chat</option>
+          <option value="page">page</option>
+          <option value="history">history</option>
+          <option value="threshold">threshold</option>
+          <option value="sequence">sequence</option>
+          <option value="time">time</option>
+        </select>
+        <select id="evStatus" onchange="renderEvents()" style="background:var(--panel2);border:1px solid var(--border2);color:var(--text2);font-family:var(--mono);font-size:9px;padding:3px 6px;cursor:pointer;">
+          <option value="">全て</option>
+          <option value="fired">発火済み</option>
+          <option value="pending">未発火</option>
+        </select>
+      </div>
+    </div>
+    <div class="panel-body" id="eventsList"></div>
+  </div>
+
+  <!-- Right: tabs -->
+  <div class="right-panel">
+    <div class="right-tabs">
+      <div class="rtab active" onclick="switchRTab('state')">状態エディタ</div>
+      <div class="rtab" onclick="switchRTab('tester')">キーワードテスト</div>
+      <div class="rtab" onclick="switchRTab('log')">実行ログ</div>
+    </div>
+    <div class="rtab-body">
+
+      <!-- State editor -->
+      <div class="rtab-pane active" id="rt-state">
+        <div class="state-section">
+          <div class="state-section-title">変数 (Variables)</div>
+          <div id="varEditorRows"></div>
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            <input id="newVarKey" class="tester-input" placeholder="変数名" style="flex:1;font-size:10px;padding:4px 8px;">
+            <input id="newVarVal" class="tester-input" placeholder="値" style="width:70px;font-size:10px;padding:4px 8px;text-align:right;">
+            <button class="btn" onclick="addVar()">追加</button>
+          </div>
+        </div>
+        <div class="state-section">
+          <div class="state-section-title">フラグ (Flags)</div>
+          <div id="flagEditorRows"></div>
+          <div style="display:flex;gap:6px;margin-top:8px;">
+            <input id="newFlagKey" class="tester-input" placeholder="フラグ名" style="flex:1;font-size:10px;padding:4px 8px;">
+            <button class="btn btn-green" onclick="addFlag()">ON で追加</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;padding-top:12px;border-top:1px solid var(--border);">
+          <button class="btn btn-green" onclick="saveState()">✓ 状態を保存</button>
+          <button class="btn btn-red" onclick="resetAll()" style="margin-left:auto;">⚠ 全リセット</button>
+        </div>
+      </div>
+
+      <!-- Keyword tester -->
+      <div class="rtab-pane" id="rt-tester">
+        <div class="tester-area">
+          <div class="tester-label">チャットキーワードテスト</div>
+          <div class="tester-row">
+            <input class="tester-input" id="kwInput" placeholder="テストするキーワードを入力" onkeydown="if(event.key==='Enter')testKeyword()">
+            <button class="btn btn-purple" onclick="testKeyword()">テスト</button>
+          </div>
+          <div class="tester-result" id="kwResult">— キーワードを入力してテストしてください —</div>
+        </div>
+        <div class="tester-area">
+          <div class="tester-label">ページ訪問シミュレート</div>
+          <div class="tester-row">
+            <select class="tester-input" id="pageSelect" style="cursor:pointer;">
+              <option value="entities">entities</option>
+              <option value="classified">classified</option>
+              <option value="agency-history">agency-history</option>
+              <option value="console">console</option>
+              <option value="statistics">statistics</option>
+              <option value="map">map</option>
+            </select>
+            <button class="btn btn-purple" onclick="testPageVisit()">訪問シミュレート</button>
+          </div>
+          <div class="tester-result" id="pvResult">— ページを選択してテストしてください —</div>
+        </div>
+        <div class="tester-area">
+          <div class="tester-label">閲覧履歴タイプ追加</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn" onclick="addViewHistory('entity')">entity 追加</button>
+            <button class="btn" onclick="addViewHistory('mission')">mission 追加</button>
+            <button class="btn" onclick="addViewHistory('classified')">classified 追加</button>
+            <button class="btn" onclick="addViewHistory('module')">module 追加</button>
+          </div>
+          <div class="tester-result" id="vhResult" style="margin-top:8px;">— ボタンを押して履歴を追加 —</div>
+        </div>
+        <div class="tester-area">
+          <div class="tester-label">スコア直接操作</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;">
+            <button class="btn btn-green"  onclick="modScore(5)">+5</button>
+            <button class="btn btn-green"  onclick="modScore(10)">+10</button>
+            <button class="btn btn-yellow" onclick="modScore(20)">+20</button>
+            <button class="btn btn-red"    onclick="modScore(50)">+50 (崩壊)</button>
+            <button class="btn"            onclick="modScore(-10)">-10</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Execution log -->
+      <div class="rtab-pane" id="rt-log">
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <button class="btn" onclick="clearLog()">ログクリア</button>
+        </div>
+        <div id="logArea"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+const KNOWN_EVENTS = [
+  {id:'E_CHAT_KAISOKU',      label:'「海は削れている」初回', type:'chat',      sev:'warn',  trigger:'海は削れている'},
+  {id:'E_CHAT_KAISOKU_2ND',  label:'「海は削れている」再',  type:'chat',      sev:'warn',  trigger:'海は削れている'},
+  {id:'E_CHAT_SHINSOKU',     label:'「収束」',              type:'chat',      sev:'info',  trigger:'収束'},
+  {id:'E_CHAT_PROJECT_KAISOKU',label:'「海蝕プロジェクト」',type:'chat',      sev:'critical',trigger:'海蝕プロジェクト'},
+  {id:'E_CHAT_NISHIDOU',     label:'「西堂」',              type:'chat',      sev:'warn',  trigger:'西堂'},
+  {id:'E_CHAT_JIKUU',        label:'「次元」',              type:'chat',      sev:'info',  trigger:'次元'},
+  {id:'E_CHAT_KANSHISA',     label:'「監視されている」',    type:'chat',      sev:'warn',  trigger:'監視されている'},
+  {id:'E_CHAT_FUIN',         label:'「封印」（条件付き）',  type:'chat',      sev:'warn',  trigger:'封印'},
+  {id:'E_CHAT_CHAPTER2_KEY', label:'「観測者は存在しない」',type:'chat',      sev:'critical',trigger:'観測者は存在しない'},
+  {id:'E_PAGE_ENTITIES',     label:'実体一覧訪問',          type:'page',      sev:'info'},
+  {id:'E_PAGE_CLASSIFIED',   label:'機密アクセス初回',      type:'page',      sev:'warn'},
+  {id:'E_PAGE_CLASSIFIED_2ND',label:'機密アクセス2回目+',  type:'page',      sev:'warn'},
+  {id:'E_PAGE_AGENCY_HISTORY',label:'機関史訪問',           type:'page',      sev:'info'},
+  {id:'E_PAGE_CONSOLE',      label:'コンソールアクセス',    type:'page',      sev:'warn'},
+  {id:'E_PAGE_STATISTICS',   label:'統計訪問',              type:'page',      sev:'info'},
+  {id:'E_PAGE_MAP_AFTER_ENTITY',label:'実体後マップ確認',   type:'sequence',  sev:'warn'},
+  {id:'E_HISTORY_ENTITY_3',  label:'実体3件閲覧',           type:'history',   sev:'warn'},
+  {id:'E_HISTORY_ENTITY_7',  label:'実体7件閲覧',           type:'history',   sev:'critical'},
+  {id:'E_HISTORY_MISSION_5', label:'任務5件閲覧',           type:'history',   sev:'info'},
+  {id:'E_HISTORY_CLASSIFIED_2',label:'機密2件閲覧',         type:'history',   sev:'warn'},
+  {id:'E_THRESH_ANOMALY_10', label:'スコア10到達',          type:'threshold', sev:'warn'},
+  {id:'E_THRESH_ANOMALY_20', label:'スコア20到達',          type:'threshold', sev:'critical'},
+  {id:'E_THRESH_ANOMALY_35', label:'スコア35到達',          type:'threshold', sev:'critical'},
+  {id:'E_THRESH_ANOMALY_50', label:'スコア50到達(崩壊)',    type:'threshold', sev:'critical'},
+  {id:'E_THRESH_OBSERVER_80',label:'負荷80超過',            type:'threshold', sev:'critical'},
+  {id:'E_SEQ_RESEARCH_PATH', label:'研究者ルート解放',      type:'sequence',  sev:'warn'},
+  {id:'E_SEQ_PARANOIA_PATH', label:'妄想ルート解放',        type:'sequence',  sev:'critical'},
+  {id:'E_TIME_5MIN',         label:'5分滞在',               type:'time',      sev:'info'},
+  {id:'E_TIME_15MIN',        label:'15分滞在',              type:'time',      sev:'warn'},
+];
+const SEV_COL  = {info:'var(--blue)',warn:'var(--yellow)',critical:'var(--red)'};
+const TYPE_COL = {chat:'var(--cyan)',page:'var(--green)',history:'var(--purple)',threshold:'var(--red)',sequence:'var(--orange)',time:'var(--blue)'};
+
+let _state = {flags:{},variables:{},history:[],firedSet:{}};
+let _log = [];
+let _editVars = {};
+let _editFlags = {};
+
+function loadState() {
+  try { _state = JSON.parse(localStorage.getItem('kaishoku_story_state')||'{}');
+    _state.flags    = _state.flags    || {};
+    _state.variables= _state.variables|| {};
+    _state.history  = _state.history  || [];
+    _state.firedSet = _state.firedSet || {};
+  } catch(e) { _state = {flags:{},variables:{},history:[],firedSet:{}}; }
+  _editVars  = JSON.parse(JSON.stringify(_state.variables));
+  _editFlags = JSON.parse(JSON.stringify(_state.flags));
+}
+function saveState() {
+  _state.variables = {..._editVars};
+  _state.flags     = {..._editFlags};
+  localStorage.setItem('kaishoku_story_state', JSON.stringify(_state));
+  toast('✓ 状態を保存しました', 'green');
+  refreshAll();
+}
+
+// ── Stats ─────────────────────────────────────────────────────
+function renderStats() {
+  const score  = _state.variables.anomaly_score || 0;
+  const load   = _state.variables.observer_load || 0;
+  const firedN = Object.keys(_state.firedSet||{}).length;
+  const flagN  = Object.values(_state.flags||{}).filter(Boolean).length;
+  document.getElementById('ss-score').textContent = score;
+  document.getElementById('ss-score').style.color = score>=35?'var(--red)':score>=20?'var(--orange)':score>=10?'var(--yellow)':'var(--text2)';
+  document.getElementById('ss-load').textContent  = load;
+  document.getElementById('ss-fired').textContent = firedN;
+  document.getElementById('ss-flags').textContent = flagN;
+  // Phase
+  const phases = [
+    {label:'初期',  flag:'',              min:0},
+    {label:'Ph.1',  flag:'chapter1_open', min:10},
+    {label:'Ph.2',  flag:'chapter2_open', min:20},
+    {label:'深部',  flag:'deep_anomaly',  min:20},
+    {label:'崩壊',  flag:'world_collapse',min:50},
+  ];
+  document.getElementById('ss-phase').innerHTML = phases.map(p=>{
+    const active = p.flag ? _state.flags[p.flag] : (!_state.flags.chapter1_open);
+    const done   = p.min  ? score>=p.min : true;
+    return `<div class="phase-step${active?' active':done?' done':''}">
+      <div class="phase-num${active?' active':done?' done':''}">${active?'●':done?'✓':'○'}</div>
+      <div class="phase-lbl">${p.label}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Events list ───────────────────────────────────────────────
+function renderEvents() {
+  const typeFilter   = document.getElementById('evFilter').value;
+  const statusFilter = document.getElementById('evStatus').value;
+  const fired = _state.firedSet || {};
+  const hist  = _state.history  || [];
+  let events = KNOWN_EVENTS.filter(e=>{
+    if (typeFilter   && e.type !== typeFilter) return false;
+    if (statusFilter === 'fired'   && !fired[e.id]) return false;
+    if (statusFilter === 'pending' && fired[e.id])  return false;
+    return true;
+  });
+  document.getElementById('eventsList').innerHTML = events.map(e => {
+    const isFired = !!fired[e.id];
+    const record  = hist.find(h=>h.eventId===e.id);
+    const timeStr = record ? new Date(record.time).toLocaleString('ja') : '';
+    return `<div class="ev-item">
+      <div class="ev-dot" style="background:${isFired?SEV_COL[e.sev]:'var(--border2)'};${isFired?'box-shadow:0 0 4px '+SEV_COL[e.sev]:''}"></div>
+      <div>
+        <div class="ev-name" style="color:${isFired?'var(--text)':'var(--text3)'}">${e.label}</div>
+        <div class="ev-id">${e.id}</div>
+        ${isFired&&timeStr?`<div class="ev-time">発火: ${timeStr}</div>`:''}
+      </div>
+      <span class="ev-type" style="background:rgba(0,0,0,.2);border:1px solid ${isFired?TYPE_COL[e.type]:'var(--border)'};color:${isFired?TYPE_COL[e.type]:'var(--text3)'}">${e.type}</span>
+      <div class="ev-actions">
+        ${!isFired?`<button class="ev-btn ev-btn-fire" onclick="forceFireEvent('${e.id}')">▶ 強制発火</button>`:''}
+        ${isFired?`<button class="ev-btn ev-btn-reset" onclick="resetEvent('${e.id}')">✕ リセット</button>`:''}
+        ${e.trigger?`<button class="ev-btn" onclick="document.getElementById('kwInput').value='${e.trigger}';switchRTab('tester');testKeyword()">キーワードテスト</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Force fire / reset event ──────────────────────────────────
+function forceFireEvent(id) {
+  if (!_state.firedSet) _state.firedSet = {};
+  _state.firedSet[id] = true;
+  _state.history.push({eventId:id, time:Date.now()});
+  localStorage.setItem('kaishoku_story_state', JSON.stringify(_state));
+  addLog('強制発火: ' + id, 'threshold');
+  toast('発火: ' + id, 'green');
+  refreshAll();
+}
+function resetEvent(id) {
+  delete _state.firedSet[id];
+  _state.history = _state.history.filter(h=>h.eventId!==id);
+  localStorage.setItem('kaishoku_story_state', JSON.stringify(_state));
+  addLog('リセット: ' + id, 'chat');
+  toast('リセット: ' + id);
+  refreshAll();
+}
+
+// ── State editor ──────────────────────────────────────────────
+function renderVarEditor() {
+  const rows = Object.entries(_editVars);
+  document.getElementById('varEditorRows').innerHTML = rows.map(([k,v])=>
+    `<div class="var-row">
+      <div class="var-key">${k}</div>
+      <input class="var-input" id="ve-${k}" value="${v}" type="number">
+      <button class="var-set-btn" onclick="setVar('${k}')">SET</button>
+    </div>`
+  ).join('');
+}
+function renderFlagEditor() {
+  const flags = Object.entries(_editFlags);
+  document.getElementById('flagEditorRows').innerHTML = flags.map(([k,v])=>
+    `<div class="flag-toggle">
+      <div class="flag-name">${k}</div>
+      <button class="toggle-btn${v?' on':''}" onclick="toggleFlag('${k}')" id="ft-${k.replace(/[^a-z0-9]/gi,'-')}"></button>
+    </div>`
+  ).join('');
+}
+function setVar(k) {
+  const v = parseFloat(document.getElementById('ve-'+k).value)||0;
+  _editVars[k] = v;
+  toast(k + ' → ' + v);
+}
+function toggleFlag(k) {
+  _editFlags[k] = !_editFlags[k];
+  renderFlagEditor();
+}
+function addVar() {
+  const k = document.getElementById('newVarKey').value.trim();
+  const v = parseFloat(document.getElementById('newVarVal').value)||0;
+  if (!k) return;
+  _editVars[k] = v;
+  document.getElementById('newVarKey').value='';
+  document.getElementById('newVarVal').value='';
+  renderVarEditor();
+}
+function addFlag() {
+  const k = document.getElementById('newFlagKey').value.trim();
+  if (!k) return;
+  _editFlags[k] = true;
+  document.getElementById('newFlagKey').value='';
+  renderFlagEditor();
+}
+
+// ── Keyword tester ────────────────────────────────────────────
+function testKeyword() {
+  const kw = document.getElementById('kwInput').value.trim();
+  if (!kw) return;
+  const matches = KNOWN_EVENTS.filter(e=>e.trigger && kw.includes(e.trigger));
+  const el = document.getElementById('kwResult');
+  if (!matches.length) {
+    el.innerHTML='<span style="color:var(--text3)">マッチするイベントなし</span>';
+    return;
+  }
+  el.innerHTML = matches.map(e=>{
+    const fired = !!_state.firedSet[e.id];
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+      <span style="color:${SEV_COL[e.sev]};font-size:9px;">■</span>
+      <span style="color:var(--text)">${e.label}</span>
+      <span style="color:${TYPE_COL[e.type]};font-size:9px;margin-left:auto">${e.type}</span>
+      <span style="font-size:9px;color:${fired?'var(--text3)':'var(--green)'}">${fired?'発火済み':'未発火'}</span>
+    </div>`;
+  }).join('');
+  addLog('キーワードテスト: "'+kw+'" → '+matches.length+'件マッチ', 'chat');
+}
+
+function testPageVisit() {
+  const page = document.getElementById('pageSelect').value;
+  const pageMap = {entities:'E_PAGE_ENTITIES',classified:'E_PAGE_CLASSIFIED','agency-history':'E_PAGE_AGENCY_HISTORY',console:'E_PAGE_CONSOLE',statistics:'E_PAGE_STATISTICS'};
+  const evId = pageMap[page];
+  const el = document.getElementById('pvResult');
+  if (!evId) { el.innerHTML='<span style="color:var(--text3)">対応イベントなし</span>'; return; }
+  const ev = KNOWN_EVENTS.find(e=>e.id===evId);
+  const fired = !!_state.firedSet[evId];
+  el.innerHTML = `<span style="color:${TYPE_COL['page']}">訪問イベント: ${ev?ev.label:evId}</span> — ${fired?'<span style="color:var(--text3)">発火済み</span>':'<span style="color:var(--green)">未発火（次回訪問で発火）</span>'}`;
+  addLog('ページ訪問テスト: ' + page, 'page');
+}
+
+function addViewHistory(type) {
+  const hist = (() => { try{ return JSON.parse(localStorage.getItem('kaishoku_view_history')||'[]'); }catch(e){return[];} })();
+  hist.unshift({type,id:'TEST-'+Date.now().toString(36),name:'テストデータ ['+type+']',at:Date.now()});
+  localStorage.setItem('kaishoku_view_history', JSON.stringify(hist.slice(0,200)));
+  const el = document.getElementById('vhResult');
+  const count = hist.filter(h=>h.type===type).length;
+  el.innerHTML = `<span style="color:var(--green)">${type} 追加完了 (累計${count}件)</span>`;
+  addLog('閲覧履歴追加: ' + type + ' (累計'+count+'件)', 'history');
+}
+
+function modScore(delta) {
+  _state.variables.anomaly_score = (_state.variables.anomaly_score||0) + delta;
+  if (_state.variables.anomaly_score < 0) _state.variables.anomaly_score = 0;
+  localStorage.setItem('kaishoku_story_state', JSON.stringify(_state));
+  _editVars = {..._state.variables};
+  addLog('スコア操作: '+(delta>0?'+':'')+delta+' → '+_state.variables.anomaly_score, 'threshold');
+  refreshAll();
+}
+
+// ── Log ───────────────────────────────────────────────────────
+function addLog(msg, type) {
+  _log.unshift({time:new Date().toLocaleTimeString('ja'),msg,type:type||'info'});
+  if (_log.length > 100) _log.pop();
+  renderLog();
+}
+function renderLog() {
+  const el = document.getElementById('logArea');
+  if (!_log.length) { el.innerHTML='<div class="no-log">— ログなし —</div>'; return; }
+  el.innerHTML = `<div class="log-area">${_log.map(l=>
+    `<div class="log-row">
+      <span class="log-time">${l.time}</span>
+      <span class="log-event log-type-${l.type}">${l.msg}</span>
+    </div>`
+  ).join('')}</div>`;
+}
+function clearLog() { _log=[]; renderLog(); }
+
+// ── Reset ─────────────────────────────────────────────────────
+function resetAll() {
+  if (!confirm('全ストーリー状態をリセットしますか？\nフラグ・変数・発火履歴がすべて消去されます。')) return;
+  localStorage.removeItem('kaishoku_story_state');
+  loadState();
+  refreshAll();
+  addLog('全状態リセット実行', 'threshold');
+  toast('⚠ リセット完了', 'red');
+}
+
+// ── Tabs ──────────────────────────────────────────────────────
+function switchRTab(name) {
+  document.querySelectorAll('.rtab').forEach((t,i)=>{
+    const names=['state','tester','log'];
+    t.classList.toggle('active', names[i]===name);
+  });
+  document.querySelectorAll('.rtab-pane').forEach(p=>p.classList.remove('active'));
+  document.getElementById('rt-'+name).classList.add('active');
+}
+
+// ── Toast ──────────────────────────────────────────────────────
+function toast(msg,type='info') {
+  const el=document.createElement('div');
+  el.className='toast-item';
+  const cols={green:'background:var(--green-dim);border-color:var(--green);color:var(--green)',
+              red:'background:var(--red-dim);border-color:var(--red);color:var(--red)',
+              info:'background:var(--panel2);border-color:var(--border2);color:var(--text2)'};
+  el.style.cssText=cols[type]||cols.info;
+  el.textContent=msg;
+  document.getElementById('toastWrap').appendChild(el);
+  setTimeout(()=>el.remove(),2500);
+}
+
+// ── Init ──────────────────────────────────────────────────────
+function refreshAll() {
+  loadState();
+  renderStats();
+  renderEvents();
+  renderVarEditor();
+  renderFlagEditor();
+  renderLog();
+}
+
+refreshAll();
+setInterval(refreshAll, 8000);
+</script>
+</body>
+</html>
