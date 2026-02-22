@@ -2187,11 +2187,11 @@ window.PAGES = {
 
  </div>
 
- ",
+ `,
  scripts: ["dashboard-init.js"]
  },
  "login": {
- html: "
+ html: `
 
  <div class="container">
 
