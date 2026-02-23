@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>プレイヤー行動解析 — 海蝕機関</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090f;--panel:#0c1018;--panel2:#111620;--border:#1a2030;--border2:#263040;
+  --cyan:#00d4ff;--cyan-dim:#001c28;--green:#00e676;--green-dim:#002810;
+  --yellow:#ffd740;--yellow-dim:#2a2000;--red:#ff5252;--red-dim:#2a0808;
+  --purple:#ce93d8;--orange:#ff9800;--blue:#4fc3f7;
+  --text:#cdd6e8;--text2:#7a8aa0;--text3:#445060;
+  --mono:'Share Tech Mono',monospace;--sans:'Noto Sans JP',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;min-height:100vh;display:flex;flex-direction:column;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,212,255,.008) 3px,rgba(0,212,255,.008) 4px);}
+
+.hdr{background:var(--panel);border-bottom:1px solid var(--border2);padding:0 24px;height:50px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--orange);box-shadow:0 0 8px var(--orange);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.hdr-title{font-family:var(--mono);font-size:12px;color:var(--orange);letter-spacing:.2em;}
+.hdr-sub{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.hdr-sep{flex:1;}
+.btn{background:none;border:1px solid var(--border2);color:var(--text2);font-family:var(--mono);font-size:10px;padding:6px 14px;cursor:pointer;letter-spacing:.08em;transition:all .15s;}
+.btn:hover{border-color:var(--cyan);color:var(--cyan);}
+.btn-red{background:var(--red-dim);border-color:var(--red);color:var(--red);}
+.btn-red:hover{background:#400808;}
+
+.layout{max-width:1500px;margin:0 auto;padding:24px;display:grid;grid-template-columns:1fr 1fr 1fr;grid-template-rows:auto;gap:16px;}
+
+/* Cards */
+.card{background:var(--panel);border:1px solid var(--border);padding:0;}
+.card-full{grid-column:1/-1;}
+.card-half{grid-column:span 2;}
+.card-third{grid-column:span 1;}
+.card-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;}
+.card-hdr-dot{width:6px;height:6px;border-radius:50%;}
+.card-hdr-title{font-family:var(--mono);font-size:10px;letter-spacing:.15em;text-transform:uppercase;}
+.card-hdr-sub{font-family:var(--mono);font-size:9px;color:var(--text3);margin-left:auto;}
+.card-body{padding:16px;}
+
+/* Stat strip */
+.stat-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:var(--border);}
+.stat-item{background:var(--panel);padding:16px 20px;}
+.stat-val{font-family:var(--mono);font-size:28px;color:var(--cyan);line-height:1;margin-bottom:4px;}
+.stat-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;}
+.stat-sub{font-family:var(--mono);font-size:9px;margin-top:4px;}
+
+/* Bar chart */
+.bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;}
+.bar-label{font-family:var(--mono);font-size:10px;color:var(--text2);width:140px;flex-shrink:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.bar-track{flex:1;height:14px;background:var(--panel2);border:1px solid var(--border);position:relative;}
+.bar-fill{height:100%;transition:width .6s ease;}
+.bar-val{font-family:var(--mono);font-size:9px;color:var(--text3);width:52px;text-align:right;flex-shrink:0;}
+
+/* Event list */
+.event-row{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);}
+.event-row:last-child{border-bottom:none;}
+.event-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.event-id{font-family:var(--mono);font-size:9px;color:var(--text3);}
+.event-name{font-size:11px;color:var(--text);}
+.event-type{font-family:var(--mono);font-size:9px;padding:2px 6px;border-radius:2px;}
+.event-status{font-family:var(--mono);font-size:9px;}
+
+/* Timeline */
+.timeline{position:relative;padding-left:24px;}
+.timeline::before{content:'';position:absolute;left:8px;top:4px;bottom:4px;width:1px;background:var(--border2);}
+.tl-item{position:relative;margin-bottom:12px;}
+.tl-dot{position:absolute;left:-20px;top:3px;width:8px;height:8px;border-radius:50%;border:1px solid;}
+.tl-time{font-family:var(--mono);font-size:9px;color:var(--text3);margin-bottom:2px;}
+.tl-text{font-size:11px;color:var(--text2);line-height:1.4;}
+.tl-page{font-family:var(--mono);font-size:9px;color:var(--cyan);}
+
+/* Heatmap grid */
+.heatmap-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.hm-cell{aspect-ratio:1;border-radius:2px;position:relative;cursor:default;}
+.hm-cell:hover::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--border2);padding:3px 7px;font-family:var(--mono);font-size:9px;white-space:nowrap;color:var(--text);z-index:10;pointer-events:none;}
+.hm-day-labels{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;margin-bottom:4px;}
+.hm-day-lbl{font-family:var(--mono);font-size:8px;color:var(--text3);text-align:center;}
+
+/* Anomaly graph */
+.anomaly-graph{position:relative;height:80px;background:var(--panel2);border:1px solid var(--border);overflow:hidden;}
+.anomaly-graph svg{width:100%;height:100%;}
+
+/* Page funnel */
+.funnel-row{display:flex;align-items:center;gap:10px;margin-bottom:6px;}
+.funnel-bar{height:22px;background:linear-gradient(90deg,rgba(0,212,255,.3),rgba(0,212,255,.1));border-left:2px solid var(--cyan);display:flex;align-items:center;padding:0 10px;transition:width .6s;}
+.funnel-lbl{font-family:var(--mono);font-size:10px;color:var(--text);white-space:nowrap;}
+.funnel-pct{font-family:var(--mono);font-size:9px;color:var(--text3);margin-left:6px;}
+
+/* Pre-collapse */
+.precollapse-item{background:var(--panel2);border:1px solid var(--border);padding:10px 14px;margin-bottom:8px;}
+.pc-header{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.pc-score{font-family:var(--mono);font-size:20px;color:var(--red);}
+.pc-label{font-size:11px;color:var(--text2);}
+.pc-steps{display:flex;gap:4px;flex-wrap:wrap;}
+.pc-step{font-family:var(--mono);font-size:9px;padding:2px 7px;background:rgba(255,82,82,.1);border:1px solid rgba(255,82,82,.25);color:rgba(255,82,82,.8);}
+.pc-arrow{font-size:9px;color:var(--text3);align-self:center;}
+
+/* Export */
+.export-area{background:var(--panel2);border:1px solid var(--border);padding:12px;font-family:var(--mono);font-size:10px;color:var(--text2);white-space:pre-wrap;max-height:240px;overflow-y:auto;margin-top:10px;}
+.no-data{font-family:var(--mono);font-size:10px;color:var(--text3);text-align:center;padding:24px;letter-spacing:.1em;}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-dot"></div>
+  <div class="hdr-title">プレイヤー行動解析</div>
+  <div class="hdr-sub">PLAYER ANALYTICS // HEATMAP</div>
+  <div class="hdr-sep"></div>
+  <button class="btn" onclick="refreshAll()">⟳ 更新</button>
+  <button class="btn" onclick="exportData()">↓ エクスポート</button>
+  <button class="btn btn-red" onclick="clearData()">✕ データ消去</button>
+  <a href="./admin-hub.html" class="btn" style="margin-left:6px;">← HUB</a>
+</div>
+
+<div class="layout">
+
+  <!-- Stat strip (full) -->
+  <div class="card card-full" style="padding:0;">
+    <div class="stat-strip" id="statStrip">
+      <div class="stat-item"><div class="stat-val" id="statScore">—</div><div class="stat-lbl">異常スコア</div><div class="stat-sub" id="statScoreSub"></div></div>
+      <div class="stat-item"><div class="stat-val" id="statLevel">—</div><div class="stat-lbl">プレイヤーLv</div><div class="stat-sub" id="statLevelSub"></div></div>
+      <div class="stat-item"><div class="stat-val" id="statEvents">—</div><div class="stat-lbl">発火済みイベント</div><div class="stat-sub" id="statEventsSub"></div></div>
+      <div class="stat-item"><div class="stat-val" id="statViews">—</div><div class="stat-lbl">総閲覧数</div><div class="stat-sub" id="statViewsSub"></div></div>
+      <div class="stat-item"><div class="stat-val" id="statFlags">—</div><div class="stat-lbl">立ちフラグ</div><div class="stat-sub" id="statFlagsSub"></div></div>
+    </div>
+  </div>
+
+  <!-- Dwell time ranking -->
+  <div class="card card-third">
+    <div class="card-hdr">
+      <div class="card-hdr-dot" style="background:var(--cyan);box-shadow:0 0 6px var(--cyan);"></div>
+      <div class="card-hdr-title" style="color:var(--cyan);">ページ滞在時間ランキング</div>
+    </div>
+    <div class="card-body" id="dwellRanking"><div class="no-data">— データなし —</div></div>
+  </div>
+
+  <!-- View history by type -->
+  <div class="card card-third">
+    <div class="card-hdr">
+      <div class="card-hdr-dot" style="background:var(--blue);box-shadow:0 0 6px var(--blue);"></div>
+      <div class="card-hdr-title" style="color:var(--blue);">カテゴリ別閲覧数</div>
+    </div>
+    <div class="card-body" id="viewByType"><div class="no-data">— データなし —</div></div>
+  </div>
+
+  <!-- Funnel -->
+  <div class="card card-third">
+    <div class="card-hdr">
+      <div class="card-hdr-dot" style="background:var(--green);box-shadow:0 0 6px var(--green);"></div>
+      <div class="card-hdr-title" style="color:var(--green);">ページ到達率 ファネル</div>
+    </div>
+    <div class="card-body" id="funnelChart"><div class="no-data">— データなし —</div></div>
+  </div>
+
+  <!-- Story events -->
+  <div class="card card-half">
+    <div class="card-hdr">
+      <div class="card-hdr-dot" style="background:var(--yellow);box-shadow:0 0 6px var(--yellow);"></div>
+      <div class="card-hdr-title" style="color:var(--yellow);">ストーリーイベント発火状況</div>
+      <div class="card-hdr-sub" id="eventsRatio"></div>
+    </div>
+    <div class="card-body" id="eventsList" style="max-height:320px;overflow-y:auto;"></div>
+  </div>
+
+  <!-- Flags -->
+  <div class="card card-third">
+    <div class="card-hdr">
+      <div class="card-hdr-dot" style="background:var(--purple);box-shadow:0 0 6px var(--purple);"></div>
+      <div class="card-hdr-title" style="color:var(--purple);">アクティブフラグ</div>
+    </div>
+    <div class="card-body" id="flagsList" style="max-height:320px;overflow-y:auto;"></div>
+  </div>
+
+  <!-- Anomaly score progress -->
+  <div class="card card-full">
+    <div class="card-hdr">
+      <div class="card-hdr-dot" style="background:var(--red);box-shadow:0 0 6px var(--red);"></div>
+      <div class="card-hdr-title" style="color:var(--red);">異常スコア推移（イベント履歴順）</div>
+    </div>
+    <div class="card-body">
+      <div class="anomaly-graph" id="anomalyGraph">
+        <svg id="anomalySvg"></svg>
+      </div>
+      <div style="display:flex;gap:24px;margin-top:8px;font-family:var(--mono);font-size:9px;color:var(--text3);">
+        <span>▎ 10: <span style="color:var(--yellow);">フェーズ1</span></span>
+        <span>▎ 20: <span style="color:var(--orange);">深部異常</span></span>
+        <span>▎ 35: <span style="color:var(--red);">崩壊予兆</span></span>
+        <span>▎ 50: <span style="color:var(--red);">世界崩壊</span></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- View timeline -->
+  <div class="card card-third">
+    <div class="card-hdr">
+      <div class="card-hdr-dot" style="background:var(--cyan);box-shadow:0 0 6px var(--cyan);"></div>
+      <div class="card-hdr-title" style="color:var(--cyan);">閲覧タイムライン</div>
+    </div>
+    <div class="card-body" style="max-height:340px;overflow-y:auto;" id="viewTimeline"><div class="no-data">— データなし —</div></div>
+  </div>
+
+  <!-- Pre-collapse actions -->
+  <div class="card card-third">
+    <div class="card-hdr">
+      <div class="card-hdr-dot" style="background:var(--red);box-shadow:0 0 6px var(--red);"></div>
+      <div class="card-hdr-title" style="color:var(--red);">精神崩壊直前行動パターン</div>
+    </div>
+    <div class="card-body" id="preCollapse"><div class="no-data">— データなし —</div></div>
+  </div>
+
+  <!-- Activity heatmap -->
+  <div class="card card-third">
+    <div class="card-hdr">
+      <div class="card-hdr-dot" style="background:var(--green);box-shadow:0 0 6px var(--green);"></div>
+      <div class="card-hdr-title" style="color:var(--green);">活動ヒートマップ（直近28日）</div>
+    </div>
+    <div class="card-body" id="heatmap"></div>
+  </div>
+
+  <!-- Variables -->
+  <div class="card card-full">
+    <div class="card-hdr">
+      <div class="card-hdr-dot" style="background:var(--orange);box-shadow:0 0 6px var(--orange);"></div>
+      <div class="card-hdr-title" style="color:var(--orange);">内部変数一覧</div>
+    </div>
+    <div class="card-body" id="variablesList"></div>
+  </div>
+
+  <!-- Raw export -->
+  <div class="card card-full">
+    <div class="card-hdr">
+      <div class="card-hdr-dot" style="background:var(--text3);"></div>
+      <div class="card-hdr-title">生データエクスポート</div>
+    </div>
+    <div class="card-body">
+      <div style="display:flex;gap:8px;margin-bottom:8px;">
+        <button class="btn" onclick="copyExport()">コピー</button>
+        <button class="btn" onclick="downloadExport()">ダウンロード</button>
+      </div>
+      <div class="export-area" id="exportArea"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Safe localStorage wrapper ────────────────────────────────
+const S = {
+  get(k){ try{return localStorage.getItem(k);}catch(e){return null;} },
+  getJ(k,d=null){ try{const v=localStorage.getItem(k);return v?JSON.parse(v):d;}catch(e){return d;} }
+};
+
+// ── Known story events list (mirrors story-engine.js) ─────────
+const KNOWN_EVENTS = [
+  {id:'E_CHAT_KAISOKU',      label:'「海は削れている」発言 初回',  type:'chat',      severity:'warn'},
+  {id:'E_CHAT_KAISOKU_2ND',  label:'「海は削れている」繰り返し',   type:'chat',      severity:'warn'},
+  {id:'E_CHAT_SHINSOKU',     label:'「収束」キーワード',            type:'chat',      severity:'info'},
+  {id:'E_CHAT_PROJECT_KAISOKU',label:'「海蝕プロジェクト」言及',   type:'chat',      severity:'critical'},
+  {id:'E_CHAT_NISHIDOU',     label:'「西堂」言及',                  type:'chat',      severity:'warn'},
+  {id:'E_CHAT_JIKUU',        label:'「次元」キーワード',            type:'chat',      severity:'info'},
+  {id:'E_CHAT_KANSHISA',     label:'「監視されている」発言',        type:'chat',      severity:'warn'},
+  {id:'E_CHAT_FUIN',         label:'「封印」キーワード（条件付き）',type:'chat',      severity:'warn'},
+  {id:'E_CHAT_CHAPTER2_KEY', label:'「観測者は存在しない」発言',    type:'chat',      severity:'critical'},
+  {id:'E_PAGE_ENTITIES',     label:'実体一覧ページ訪問',            type:'page',      severity:'info'},
+  {id:'E_PAGE_CLASSIFIED',   label:'機密ファイルアクセス 初回',     type:'page',      severity:'warn'},
+  {id:'E_PAGE_CLASSIFIED_2ND',label:'機密ファイルアクセス 2回目+', type:'page',      severity:'warn'},
+  {id:'E_PAGE_AGENCY_HISTORY',label:'機関史ページ訪問',             type:'page',      severity:'info'},
+  {id:'E_PAGE_CONSOLE',      label:'コンソールアクセス',            type:'page',      severity:'warn'},
+  {id:'E_PAGE_STATISTICS',   label:'統計ページ訪問',                type:'page',      severity:'info'},
+  {id:'E_PAGE_MAP_AFTER_ENTITY',label:'実体閲覧後マップ確認',       type:'sequence',  severity:'warn'},
+  {id:'E_HISTORY_ENTITY_3',  label:'実体 3件閲覧',                  type:'history',   severity:'warn'},
+  {id:'E_HISTORY_ENTITY_7',  label:'実体 7件閲覧（強迫的）',        type:'history',   severity:'critical'},
+  {id:'E_HISTORY_MISSION_5', label:'任務 5件閲覧',                  type:'history',   severity:'info'},
+  {id:'E_HISTORY_CLASSIFIED_2',label:'機密文書 2件以上閲覧',        type:'history',   severity:'warn'},
+  {id:'E_THRESH_ANOMALY_10', label:'異常スコア 10 到達',            type:'threshold', severity:'warn'},
+  {id:'E_THRESH_ANOMALY_20', label:'異常スコア 20 到達',            type:'threshold', severity:'critical'},
+  {id:'E_THRESH_ANOMALY_35', label:'異常スコア 35 到達',            type:'threshold', severity:'critical'},
+  {id:'E_THRESH_ANOMALY_50', label:'異常スコア 50 到達（崩壊）',    type:'threshold', severity:'critical'},
+  {id:'E_THRESH_OBSERVER_80',label:'観測者負荷 80 超過',            type:'threshold', severity:'critical'},
+  {id:'E_SEQ_RESEARCH_PATH', label:'研究者ルート解放',              type:'sequence',  severity:'warn'},
+  {id:'E_SEQ_PARANOIA_PATH', label:'妄想ルート解放',                type:'sequence',  severity:'critical'},
+  {id:'E_TIME_5MIN',         label:'5分以上滞在',                   type:'time',      severity:'info'},
+  {id:'E_TIME_15MIN',        label:'15分以上滞在',                  type:'time',      severity:'warn'},
+];
+
+const SEV_COLOR = {info:'var(--blue)',warn:'var(--yellow)',critical:'var(--red)'};
+const TYPE_COLOR = {chat:'var(--cyan)',page:'var(--green)',history:'var(--purple)',threshold:'var(--red)',sequence:'var(--orange)',time:'var(--blue)'};
+
+const PAGE_FUNNEL = [
+  {page:'login',       label:'ログイン',       threshold:1.0},
+  {page:'dashboard',   label:'ダッシュボード',  threshold:0.9},
+  {page:'divisions',   label:'部門一覧',        threshold:0.7},
+  {page:'entities',    label:'実体一覧',        threshold:0.5},
+  {page:'classified',  label:'機密ファイル',    threshold:0.25},
+  {page:'agency-history', label:'機関史',       threshold:0.2},
+  {page:'console',     label:'コンソール',      threshold:0.1},
+];
+
+// ── Load all relevant data ────────────────────────────────────
+function loadAll() {
+  const storyState = S.getJ('kaishoku_story_state', {flags:{},variables:{},history:[],firedSet:{}});
+  const viewHist   = S.getJ('kaishoku_view_history', []);
+  const users      = S.getJ('kaishoku_users', []);
+  const currentUser= S.getJ('kaishoku_current_user', null);
+  const pageVisits = S.getJ('kaishoku_page_visits', {});  // set by tracker below
+  const dwellTimes = S.getJ('kaishoku_dwell_times', {});
+
+  return { storyState, viewHist, users, currentUser, pageVisits, dwellTimes };
+}
+
+function refreshAll() {
+  const d = loadAll();
+  renderStats(d);
+  renderDwellRanking(d);
+  renderViewByType(d);
+  renderFunnel(d);
+  renderEvents(d);
+  renderFlags(d);
+  renderAnomalyGraph(d);
+  renderTimeline(d);
+  renderPreCollapse(d);
+  renderHeatmap(d);
+  renderVariables(d);
+  renderExport(d);
+}
+
+// ── Stats strip ───────────────────────────────────────────────
+function renderStats(d) {
+  const score   = d.storyState.variables.anomaly_score || 0;
+  const obLoad  = d.storyState.variables.observer_load || 0;
+  const firedN  = Object.keys(d.storyState.firedSet||{}).length;
+  const flagN   = Object.values(d.storyState.flags||{}).filter(Boolean).length;
+  const viewN   = d.viewHist.length;
+  const user    = d.currentUser;
+  const lv      = user ? (user.level||0) : '—';
+  const xp      = user ? (user.xp||0) : 0;
+
+  document.getElementById('statScore').textContent  = score;
+  document.getElementById('statScoreSub').innerHTML = `<span style="color:${score>=35?'var(--red)':score>=20?'var(--orange)':score>=10?'var(--yellow)':'var(--green)'}">${scoreLabel(score)}</span>`;
+  document.getElementById('statLevel').textContent  = lv;
+  document.getElementById('statLevelSub').innerHTML = user ? `<span style="color:var(--text3)">${xp} XP</span>` : '';
+  document.getElementById('statEvents').textContent = firedN;
+  document.getElementById('statEventsSub').innerHTML= `<span style="color:var(--text3)">/ ${KNOWN_EVENTS.length} 件</span>`;
+  document.getElementById('statViews').textContent  = viewN;
+  document.getElementById('statViewsSub').innerHTML = `<span style="color:var(--text3)">観測者負荷: ${obLoad}</span>`;
+  document.getElementById('statFlags').textContent  = flagN;
+  document.getElementById('statFlagsSub').innerHTML = `<span style="color:var(--text3)">${Object.keys(d.storyState.flags||{}).length} 件中</span>`;
+}
+function scoreLabel(s){ return s>=50?'世界崩壊':s>=35?'崩壊予兆':s>=20?'深部異常':s>=10?'フェーズ1':'正常範囲'; }
+
+// ── Dwell ranking ─────────────────────────────────────────────
+function renderDwellRanking(d) {
+  const dwell = d.dwellTimes;
+  const entries = Object.entries(dwell).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const el = document.getElementById('dwellRanking');
+  if (!entries.length) { el.innerHTML='<div class="no-data">— データなし —</div>'; return; }
+  const max = entries[0][1];
+  el.innerHTML = entries.map(([page,sec])=>{
+    const pct = max ? (sec/max*100).toFixed(0) : 0;
+    const color = sec>300?'var(--red)':sec>120?'var(--yellow)':'var(--cyan)';
+    return `<div class="bar-row">
+      <div class="bar-label" title="${page}">${page}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${color};"></div></div>
+      <div class="bar-val">${fmtSec(sec)}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── View by type ──────────────────────────────────────────────
+function renderViewByType(d) {
+  const counts = {};
+  d.viewHist.forEach(h=>{ counts[h.type]=(counts[h.type]||0)+1; });
+  const entries = Object.entries(counts).sort((a,b)=>b[1]-a[1]);
+  const el = document.getElementById('viewByType');
+  if (!entries.length) { el.innerHTML='<div class="no-data">— データなし —</div>'; return; }
+  const max = entries[0][1];
+  const colors = {entity:'var(--purple)',mission:'var(--red)',module:'var(--cyan)',location:'var(--green)',personnel:'var(--yellow)'};
+  el.innerHTML = entries.map(([type,cnt])=>{
+    const pct = (cnt/max*100).toFixed(0);
+    return `<div class="bar-row">
+      <div class="bar-label">${type}</div>
+      <div class="bar-track"><div class="bar-fill" style="width:${pct}%;background:${colors[type]||'var(--text2)'};"></div></div>
+      <div class="bar-val">${cnt}件</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Page funnel ───────────────────────────────────────────────
+function renderFunnel(d) {
+  const fired = d.storyState.firedSet || {};
+  const pageToEvent = {
+    entities:'E_PAGE_ENTITIES', classified:'E_PAGE_CLASSIFIED',
+    'agency-history':'E_PAGE_AGENCY_HISTORY', console:'E_PAGE_CONSOLE',
+    statistics:'E_PAGE_STATISTICS',
+  };
+  const el = document.getElementById('funnelChart');
+  // Estimate reach from fired events or view history page visits
+  const visitedPages = new Set(d.viewHist.map(h=>h.type));
+  const visitedPagesFired = new Set(Object.keys(pageToEvent).filter(p=>fired[pageToEvent[p]]));
+
+  el.innerHTML = PAGE_FUNNEL.map((item, i) => {
+    const reached = i===0 || fired[pageToEvent[item.page]] || visitedPagesFired.has(item.page);
+    const width = Math.max(20, Math.round(100 * Math.pow(item.threshold, 0.6)));
+    const color = reached ? 'rgba(0,212,255,' + (0.2 + item.threshold*0.5) + ')' : 'rgba(255,255,255,.04)';
+    const borderColor = reached ? 'var(--cyan)' : 'var(--border)';
+    return `<div class="funnel-row">
+      <div class="funnel-bar" style="width:${width}%;background:${color};border-left-color:${borderColor};">
+        <span class="funnel-lbl" style="color:${reached?'var(--text)':'var(--text3)'}">${item.label}</span>
+        <span class="funnel-pct">${reached?'✓ 到達':'未訪問'}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Story events ──────────────────────────────────────────────
+function renderEvents(d) {
+  const fired = d.storyState.firedSet || {};
+  const firedN = KNOWN_EVENTS.filter(e=>fired[e.id]).length;
+  document.getElementById('eventsRatio').textContent = firedN + ' / ' + KNOWN_EVENTS.length;
+  document.getElementById('eventsList').innerHTML = KNOWN_EVENTS.map(e => {
+    const isFired = !!fired[e.id];
+    const hist = (d.storyState.history||[]).find(h=>h.eventId===e.id);
+    const timeStr = hist ? new Date(hist.time).toLocaleString('ja') : '';
+    return `<div class="event-row">
+      <div class="event-dot" style="background:${isFired?SEV_COLOR[e.severity]:'var(--border2)'};${isFired?'box-shadow:0 0 5px '+SEV_COLOR[e.severity]:''}"></div>
+      <div>
+        <div class="event-name" style="color:${isFired?'var(--text)':'var(--text3)'}">${e.label}</div>
+        <div style="display:flex;gap:6px;margin-top:2px;">
+          <span class="event-id">${e.id}</span>
+          ${isFired&&timeStr?`<span style="font-family:var(--mono);font-size:9px;color:var(--text3)">${timeStr}</span>`:''}
+        </div>
+      </div>
+      <span class="event-type" style="background:${isFired?'rgba(0,0,0,.3)':'transparent'};border:1px solid ${isFired?TYPE_COLOR[e.type]:'var(--border)'};color:${isFired?TYPE_COLOR[e.type]:'var(--text3)'}">${e.type}</span>
+    </div>`;
+  }).join('');
+}
+
+// ── Flags ─────────────────────────────────────────────────────
+function renderFlags(d) {
+  const flags = d.storyState.flags || {};
+  const active = Object.entries(flags).filter(([,v])=>v);
+  const el = document.getElementById('flagsList');
+  if (!active.length) { el.innerHTML='<div class="no-data">— フラグなし —</div>'; return; }
+  el.innerHTML = active.map(([k])=>
+    `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
+      <div style="width:6px;height:6px;border-radius:50%;background:var(--green);flex-shrink:0;"></div>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--green);">${k}</span>
+    </div>`
+  ).join('');
+}
+
+// ── Anomaly graph ─────────────────────────────────────────────
+function renderAnomalyGraph(d) {
+  const history = d.storyState.history || [];
+  const SCORE_EVENTS = {
+    E_CHAT_KAISOKU:5,E_CHAT_KAISOKU_2ND:2,E_CHAT_SHINSOKU:2,E_CHAT_PROJECT_KAISOKU:8,
+    E_CHAT_NISHIDOU:3,E_CHAT_JIKUU:2,E_CHAT_KANSHISA:6,E_CHAT_FUIN:5,E_CHAT_CHAPTER2_KEY:10,
+    E_PAGE_ENTITIES:1,E_PAGE_CLASSIFIED:3,E_PAGE_CLASSIFIED_2ND:1,E_PAGE_AGENCY_HISTORY:2,
+    E_PAGE_CONSOLE:4,E_PAGE_STATISTICS:1,E_PAGE_MAP_AFTER_ENTITY:3,
+    E_HISTORY_ENTITY_3:5,E_HISTORY_ENTITY_7:8,E_HISTORY_MISSION_5:3,E_HISTORY_CLASSIFIED_2:6,
+    E_SEQ_RESEARCH_PATH:5,E_SEQ_PARANOIA_PATH:8,
+  };
+  let points = [{score:0,event:'開始'}];
+  let cur = 0;
+  history.forEach(h=>{
+    const delta = SCORE_EVENTS[h.eventId];
+    if (delta) { cur += delta; points.push({score:cur,event:h.eventId}); }
+  });
+  if (points.length < 2) {
+    document.getElementById('anomalySvg').innerHTML='<text x="50%" y="50%" text-anchor="middle" fill="#445060" font-size="11" font-family="monospace">イベント履歴なし</text>';
+    return;
+  }
+  const maxScore = Math.max(50, cur + 5);
+  const W=800, H=80, pad=8;
+  const xs = points.map((_,i)=>pad + (i/(points.length-1||1))*(W-pad*2));
+  const ys = points.map(p=>H-pad - (p.score/maxScore)*(H-pad*2));
+  const path = xs.map((x,i)=>(i===0?'M':'L')+x+','+ys[i]).join(' ');
+  const area = xs.map((x,i)=>(i===0?'M':'L')+x+','+ys[i]).join(' ')+` L${xs[xs.length-1]},${H-pad} L${pad},${H-pad} Z`;
+  const thresholds = [{s:10,c:'#ffd740'},{s:20,c:'#ff9800'},{s:35,c:'#ff5252'},{s:50,c:'#ff5252'}];
+  const lines = thresholds.map(t=>{
+    const y = H-pad - (t.s/maxScore)*(H-pad*2);
+    return y>0&&y<H ? `<line x1="${pad}" y1="${y}" x2="${W-pad}" y2="${y}" stroke="${t.c}" stroke-width=".5" stroke-dasharray="4,4" opacity=".5"/>
+      <text x="${W-pad+2}" y="${y+3}" fill="${t.c}" font-size="8" font-family="monospace">${t.s}</text>` : '';
+  }).join('');
+  document.getElementById('anomalySvg').innerHTML=`
+    <defs><linearGradient id="ag" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#00d4ff" stop-opacity=".3"/><stop offset="100%" stop-color="#00d4ff" stop-opacity="0"/></linearGradient></defs>
+    ${lines}
+    <path d="${area}" fill="url(#ag)"/>
+    <path d="${path}" fill="none" stroke="#00d4ff" stroke-width="1.5"/>
+    ${points.map((p,i)=>`<circle cx="${xs[i]}" cy="${ys[i]}" r="2.5" fill="#00d4ff" opacity=".7"/>`).join('')}
+  `;
+}
+
+// ── Timeline ──────────────────────────────────────────────────
+function renderTimeline(d) {
+  const hist = d.viewHist.slice(0, 20);
+  const el = document.getElementById('viewTimeline');
+  if (!hist.length) { el.innerHTML='<div class="no-data">— データなし —</div>'; return; }
+  const TYPE_COL = {entity:'var(--purple)',mission:'var(--red)',module:'var(--cyan)',location:'var(--green)',personnel:'var(--yellow)'};
+  el.innerHTML = `<div class="timeline">${hist.map(h=>{
+    const col = TYPE_COL[h.type]||'var(--text2)';
+    return `<div class="tl-item">
+      <div class="tl-dot" style="background:${col};border-color:${col};"></div>
+      <div class="tl-time">${new Date(h.at).toLocaleString('ja')}</div>
+      <div class="tl-page" style="color:${col}">[${h.type}] ${h.name}</div>
+    </div>`;
+  }).join('')}</div>`;
+}
+
+// ── Pre-collapse patterns ─────────────────────────────────────
+function renderPreCollapse(d) {
+  const el = document.getElementById('preCollapse');
+  const fired = d.storyState.firedSet || {};
+  // Find sequences that end in high-anomaly events
+  const collapseEvents = ['E_THRESH_ANOMALY_35','E_THRESH_ANOMALY_50','E_SEQ_PARANOIA_PATH'];
+  const history = d.storyState.history || [];
+  const collapseHist = history.filter(h=>collapseEvents.includes(h.eventId));
+  if (!collapseHist.length) {
+    el.innerHTML='<div class="no-data">崩壊イベント未発生</div>';
+    return;
+  }
+  el.innerHTML = collapseHist.map(colEv=>{
+    const idx = history.findIndex(h=>h.eventId===colEv.eventId&&h.time===colEv.time);
+    const before = history.slice(Math.max(0,idx-4), idx);
+    const meta = KNOWN_EVENTS.find(e=>e.id===colEv.eventId);
+    return `<div class="precollapse-item">
+      <div class="pc-header">
+        <div class="pc-score" style="color:${colEv.eventId.includes('50')?'#ff5252':'#ff9800'}">⚠</div>
+        <div class="pc-label">${meta?meta.label:colEv.eventId}</div>
+      </div>
+      <div class="pc-steps">
+        ${before.map(h=>{
+          const m=KNOWN_EVENTS.find(e=>e.id===h.eventId);
+          return `<span class="pc-step">${m?m.label.slice(0,12):h.eventId}</span><span class="pc-arrow">→</span>`;
+        }).join('')}
+        <span class="pc-step" style="background:rgba(255,82,82,.25);border-color:rgba(255,82,82,.6);color:#ff5252;">
+          ${meta?meta.label.slice(0,16):colEv.eventId}
+        </span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ── Activity heatmap ──────────────────────────────────────────
+function renderHeatmap(d) {
+  const el = document.getElementById('heatmap');
+  // Build 28-day activity from view history
+  const now = Date.now();
+  const days = {};
+  for (let i=0; i<28; i++) {
+    const d2 = new Date(now - i*86400000);
+    days[d2.toDateString()] = 0;
+  }
+  d.viewHist.forEach(h=>{
+    const k = new Date(h.at).toDateString();
+    if (k in days) days[k]++;
+  });
+  // Also add story event days
+  (d.storyState.history||[]).forEach(h=>{
+    const k = new Date(h.time).toDateString();
+    if (k in days) days[k]++;
+  });
+  const vals = Object.values(days).reverse();
+  const maxVal = Math.max(1, ...vals);
+  const DAYS = ['日','月','火','水','木','金','土'];
+  el.innerHTML =
+    `<div class="hm-day-labels">${DAYS.map(d=>`<div class="hm-day-lbl">${d}</div>`).join('')}</div>` +
+    `<div class="heatmap-grid">${vals.map((v,i)=>{
+      const alpha = v/maxVal;
+      const bg = v===0 ? 'var(--panel2)' : `rgba(0,212,255,${0.1+alpha*0.8})`;
+      const date = new Date(now - (vals.length-1-i)*86400000).toLocaleDateString('ja');
+      return `<div class="hm-cell" style="background:${bg};border:1px solid rgba(0,212,255,${alpha*0.3});" data-tip="${date}: ${v}件"></div>`;
+    }).join('')}</div>`;
+}
+
+// ── Variables ─────────────────────────────────────────────────
+function renderVariables(d) {
+  const vars = d.storyState.variables || {};
+  const el = document.getElementById('variablesList');
+  const entries = Object.entries(vars);
+  if (!entries.length) { el.innerHTML='<div class="no-data">— 変数なし —</div>'; return; }
+  const VAR_MAX = {anomaly_score:50, observer_load:100};
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
+    ${entries.map(([k,v])=>{
+      const max = VAR_MAX[k] || Math.max(v, 10);
+      const pct = Math.min(100, (v/max*100)).toFixed(0);
+      const color = pct>70?'var(--red)':pct>40?'var(--yellow)':'var(--cyan)';
+      return `<div style="background:var(--panel2);border:1px solid var(--border);padding:12px 14px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">${k}</span>
+          <span style="font-family:var(--mono);font-size:14px;color:${color}">${v}</span>
+        </div>
+        <div style="height:4px;background:var(--border);border-radius:2px;">
+          <div style="height:100%;width:${pct}%;background:${color};border-radius:2px;transition:width .6s;"></div>
+        </div>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+// ── Export ────────────────────────────────────────────────────
+let _lastExport = '';
+function renderExport(d) {
+  const snapshot = {
+    generatedAt: new Date().toISOString(),
+    storyState:  d.storyState,
+    viewHistory: d.viewHist,
+    currentUser: d.currentUser,
+    pageVisits:  d.pageVisits,
+    dwellTimes:  d.dwellTimes,
+    firedEventCount: Object.keys(d.storyState.firedSet||{}).length,
+    totalViewCount:  d.viewHist.length,
+  };
+  _lastExport = JSON.stringify(snapshot, null, 2);
+  document.getElementById('exportArea').textContent = _lastExport;
+}
+function copyExport(){ navigator.clipboard.writeText(_lastExport); }
+function downloadExport(){
+  const a=document.createElement('a');
+  a.href='data:application/json,'+encodeURIComponent(_lastExport);
+  a.download='player-analytics-'+Date.now()+'.json';
+  a.click();
+}
+function exportData(){ downloadExport(); }
+function clearData(){
+  if (!confirm('全プレイヤーデータを消去しますか？\nこの操作は取り消せません。')) return;
+  ['kaishoku_story_state','kaishoku_view_history','kaishoku_page_visits','kaishoku_dwell_times'].forEach(k=>localStorage.removeItem(k));
+  refreshAll();
+}
+
+// ── Util ──────────────────────────────────────────────────────
+function fmtSec(s){ if(s<60)return s+'秒'; if(s<3600)return Math.floor(s/60)+'分'+s%60+'秒'; return Math.floor(s/3600)+'時間'+Math.floor((s%3600)/60)+'分'; }
+
+// ── Dwell time tracker injection (for the main site) ─────────
+// This script block can be included in main pages to track dwell times
+// Here we just show what keys would be stored.
+
+refreshAll();
+setInterval(refreshAll, 10000); // auto-refresh every 10s
+</script>
+</body>
+</html>

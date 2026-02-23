@@ -1,0 +1,38 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "KaishokuEntity",
+  "description": "海蝕実体データのスキーマ",
+  "type": "object",
+  "required": ["id", "code", "name", "classification", "threat"],
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^ent-\\d+$",
+      "description": "内部ID (例: ent-001)"
+    },
+    "code": {
+      "type": "string",
+      "pattern": "^E-\\d+$",
+      "description": "実体コード (例: E-001)"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "classification": {
+      "type": "string",
+      "enum": ["CLASS-A", "CLASS-B", "CLASS-C", "CLASS-D", "CLASS-E", "CLASS-X", "CLASS-UNKNOWN"]
+    },
+    "threat": {
+      "type": "string",
+      "enum": ["LOW", "MODERATE", "HIGH", "CRITICAL", "UNKNOWN", "低", "中", "高", "極高", "不明"]
+    },
+    "description":   { "type": "string" },
+    "intelligence":  { "type": "string" },
+    "origin":        { "type": "string" },
+    "appearance":    { "type": "string" },
+    "behavior":      { "type": "string" },
+    "containment":   { "type": "string" }
+  }
+}

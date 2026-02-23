@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ゲームバランス調整 — 海蝕機関</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #07090f;
+  --panel: #0c1018;
+  --panel2: #111620;
+  --border: #1a2030;
+  --border2: #263040;
+  --cyan: #00d4ff;
+  --cyan-dim: #002838;
+  --green: #00e676;
+  --green-dim: #002810;
+  --yellow: #ffd740;
+  --yellow-dim: #2a2000;
+  --orange: #ff9800;
+  --red: #ff5252;
+  --red-dim: #2a0808;
+  --purple: #ce93d8;
+  --blue: #4fc3f7;
+  --text: #cdd6e8;
+  --text2: #7a8aa0;
+  --text3: #445060;
+  --mono: 'Share Tech Mono', monospace;
+  --sans: 'Noto Sans JP', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px;
+  min-height: 100vh; display: flex; flex-direction: column;
+}
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+  background: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,212,255,.01) 3px,rgba(0,212,255,.01) 4px);
+}
+.header {
+  background: var(--panel); border-bottom: 1px solid var(--border2);
+  padding: 0 24px; height: 50px; display: flex; align-items: center; gap: 16px;
+  position: sticky; top: 0; z-index: 100; flex-shrink: 0;
+}
+.header-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--yellow); box-shadow: 0 0 8px var(--yellow); animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.header-title { font-family: var(--mono); font-size: 12px; color: var(--yellow); letter-spacing: .2em; }
+.header-sub { font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: .1em; }
+.header-sep { flex: 1; }
+.save-all-btn {
+  background: var(--green-dim); border: 1px solid var(--green); color: var(--green);
+  font-family: var(--mono); font-size: 11px; padding: 8px 20px; cursor: pointer;
+  letter-spacing: .1em; transition: background .15s;
+}
+.save-all-btn:hover { background: #004020; }
+.dl-btn {
+  background: none; border: 1px solid var(--border2); color: var(--text2);
+  font-family: var(--mono); font-size: 11px; padding: 8px 14px; cursor: pointer;
+  letter-spacing: .08em; transition: all .15s;
+}
+.dl-btn:hover { border-color: var(--yellow); color: var(--yellow); }
+
+.layout { display: flex; flex: 1; min-height: 0; }
+
+/* Sidebar nav */
+.nav {
+  width: 200px; background: var(--panel); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; padding: 16px 0; flex-shrink: 0;
+}
+.nav-section { padding: 8px 16px 4px; font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: .15em; text-transform: uppercase; }
+.nav-item {
+  padding: 9px 16px; cursor: pointer; font-family: var(--mono); font-size: 11px;
+  color: var(--text2); border-left: 2px solid transparent; transition: all .1s; letter-spacing: .06em;
+}
+.nav-item:hover { background: var(--panel2); color: var(--text); }
+.nav-item.active { color: var(--yellow); border-left-color: var(--yellow); background: var(--panel2); }
+
+/* Main content */
+.content { flex: 1; overflow-y: auto; padding: 32px 36px; }
+.page { display: none; }
+.page.active { display: block; }
+
+.page-title { font-family: var(--mono); font-size: 13px; color: var(--yellow); letter-spacing: .15em; margin-bottom: 4px; }
+.page-desc { font-size: 12px; color: var(--text2); margin-bottom: 28px; }
+
+.section { margin-bottom: 32px; }
+.section-head {
+  font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: .15em;
+  text-transform: uppercase; padding-bottom: 8px; border-bottom: 1px solid var(--border);
+  margin-bottom: 18px; display: flex; align-items: center; gap: 8px;
+}
+.section-head::before { content: '//'; color: var(--yellow); }
+
+/* Level threshold editor */
+.level-row {
+  display: flex; align-items: center; gap: 16px; padding: 14px 18px;
+  background: var(--panel2); border: 1px solid var(--border); margin-bottom: 8px;
+}
+.level-color-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.level-name { font-size: 13px; font-weight: 500; min-width: 140px; }
+.level-code { font-family: var(--mono); font-size: 10px; color: var(--text3); min-width: 80px; }
+.xp-slider-wrap { flex: 1; display: flex; align-items: center; gap: 12px; }
+.xp-slider {
+  flex: 1; -webkit-appearance: none; appearance: none;
+  height: 4px; background: var(--border2); outline: none;
+}
+.xp-slider::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%;
+  background: var(--yellow); cursor: pointer; border: 2px solid var(--bg);
+  box-shadow: 0 0 6px var(--yellow);
+}
+.xp-input {
+  width: 90px; background: var(--panel); border: 1px solid var(--border2); color: var(--yellow);
+  padding: 6px 10px; font-family: var(--mono); font-size: 13px; outline: none; text-align: right;
+}
+.xp-input:focus { border-color: var(--yellow); }
+.xp-diff { font-family: var(--mono); font-size: 10px; color: var(--text3); min-width: 80px; text-align: right; }
+
+/* XP curve canvas */
+.curve-wrap {
+  background: var(--panel2); border: 1px solid var(--border); padding: 20px;
+  display: flex; justify-content: center; margin-bottom: 16px;
+}
+canvas { display: block; }
+
+/* XP rewards editor */
+.reward-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.reward-card {
+  background: var(--panel2); border: 1px solid var(--border); padding: 14px 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+.reward-icon { font-family: var(--mono); font-size: 18px; min-width: 30px; text-align: center; }
+.reward-info { flex: 1; }
+.reward-name { font-size: 13px; font-weight: 500; margin-bottom: 2px; }
+.reward-key { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+.reward-input {
+  width: 70px; background: var(--panel); border: 1px solid var(--border2); color: var(--green);
+  padding: 6px 10px; font-family: var(--mono); font-size: 14px; outline: none; text-align: center;
+}
+.reward-input:focus { border-color: var(--green); }
+.reward-unit { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+
+/* Daily login */
+.daily-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+.daily-card {
+  background: var(--panel2); border: 1px solid var(--border); padding: 14px 10px;
+  text-align: center; position: relative;
+}
+.daily-card:last-child { border-color: var(--yellow); }
+.daily-day { font-family: var(--mono); font-size: 9px; color: var(--text3); margin-bottom: 8px; }
+.daily-input {
+  width: 100%; background: var(--panel); border: 1px solid var(--border2); color: var(--cyan);
+  padding: 6px 4px; font-family: var(--mono); font-size: 14px; outline: none; text-align: center;
+}
+.daily-input:focus { border-color: var(--cyan); }
+.daily-7 .daily-input { color: var(--yellow); }
+.special-badge {
+  position: absolute; top: -8px; left: 50%; transform: translateX(-50%);
+  background: var(--yellow); color: var(--bg); font-family: var(--mono);
+  font-size: 8px; padding: 1px 6px; white-space: nowrap;
+}
+
+/* Unlock editor */
+.unlock-level-header {
+  background: var(--panel2); border: 1px solid var(--border); padding: 12px 16px;
+  display: flex; align-items: center; gap: 12px; margin-bottom: 1px; cursor: pointer;
+}
+.unlock-level-header:hover { border-color: var(--border2); }
+.unlock-content {
+  background: var(--bg); border: 1px solid var(--border); border-top: none;
+  padding: 12px; margin-bottom: 12px;
+}
+.unlock-item {
+  display: flex; align-items: center; gap: 8px; padding: 5px 0;
+  border-bottom: 1px solid var(--border);
+}
+.unlock-item:last-child { border-bottom: none; }
+.unlock-input {
+  flex: 1; background: transparent; border: none; color: var(--text2);
+  font-family: var(--mono); font-size: 12px; outline: none; padding: 2px 0;
+}
+.unlock-input:focus { color: var(--text); }
+.btn-remove {
+  background: none; border: none; color: var(--text3); cursor: pointer; font-family: var(--mono);
+  font-size: 12px; padding: 2px 6px; transition: color .15s;
+}
+.btn-remove:hover { color: var(--red); }
+.btn-add-unlock {
+  background: none; border: 1px dashed var(--border2); color: var(--text3);
+  font-family: var(--mono); font-size: 10px; padding: 5px 12px; cursor: pointer;
+  width: 100%; text-align: left; margin-top: 6px; transition: all .15s; letter-spacing: .05em;
+}
+.btn-add-unlock:hover { border-color: var(--yellow); color: var(--yellow); }
+
+/* Simulation */
+.sim-card {
+  background: var(--panel2); border: 1px solid var(--border); padding: 20px; margin-bottom: 16px;
+}
+.sim-title { font-family: var(--mono); font-size: 12px; color: var(--cyan); margin-bottom: 12px; letter-spacing: .1em; }
+.sim-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.sim-label { font-family: var(--mono); font-size: 10px; color: var(--text3); min-width: 80px; }
+.sim-result {
+  background: var(--bg); border: 1px solid var(--border2); padding: 12px 16px; margin-top: 12px;
+  font-family: var(--mono); font-size: 12px; color: var(--green); line-height: 1.8; min-height: 60px;
+}
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 24px; right: 24px; background: var(--panel);
+  border: 1px solid var(--yellow); color: var(--yellow); font-family: var(--mono);
+  font-size: 11px; padding: 10px 18px; opacity: 0; transform: translateY(8px);
+  transition: all .25s; pointer-events: none; z-index: 9998; letter-spacing: .08em;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.green { border-color: var(--green); color: var(--green); }
+
+::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border2); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-dot"></div>
+  <div class="header-title">KAISHOKU // BALANCE EDITOR</div>
+  <div class="header-sub">ゲームバランス調整端末 v1.0</div>
+  <div class="header-sep"></div>
+  <button class="dl-btn" onclick="downloadJSON()">↓ JSONをダウンロード</button>
+  <button class="save-all-btn" onclick="applyAll()">▶ 設定を適用 (localStorage)</button>
+</div>
+
+<div class="layout">
+  <nav class="nav">
+    <div class="nav-section">設定</div>
+    <div class="nav-item active" onclick="showPage('lvl', this)">レベル閾値</div>
+    <div class="nav-item" onclick="showPage('xp', this)">XP報酬</div>
+    <div class="nav-item" onclick="showPage('daily', this)">デイリーボーナス</div>
+    <div class="nav-item" onclick="showPage('unlock', this)">解放コンテンツ</div>
+    <div class="nav-section" style="margin-top:12px">ツール</div>
+    <div class="nav-item" onclick="showPage('sim', this)">レベル到達シミュ</div>
+    <div class="nav-item" onclick="showPage('json', this)">RAW JSON</div>
+  </nav>
+
+  <div class="content">
+
+    <!-- Level Thresholds -->
+    <div class="page active" id="page-lvl">
+      <div class="page-title">// LEVEL THRESHOLDS</div>
+      <div class="page-desc">各レベルに必要な累計XPを設定します。スライダーまたは数値で直接入力できます。</div>
+
+      <div class="section">
+        <div class="section-head">XP カーブ</div>
+        <div class="curve-wrap"><canvas id="curveCanvas" width="640" height="180"></canvas></div>
+      </div>
+
+      <div class="section">
+        <div class="section-head">閾値設定</div>
+        <div id="levelRows"></div>
+      </div>
+    </div>
+
+    <!-- XP Rewards -->
+    <div class="page" id="page-xp">
+      <div class="page-title">// XP REWARDS</div>
+      <div class="page-desc">各アクションで獲得できるXPを設定します。</div>
+      <div class="section">
+        <div class="section-head">報酬設定</div>
+        <div class="reward-grid" id="rewardGrid"></div>
+      </div>
+    </div>
+
+    <!-- Daily Login Rewards -->
+    <div class="page" id="page-daily">
+      <div class="page-title">// DAILY LOGIN REWARDS</div>
+      <div class="page-desc">連続ログイン日数に応じたボーナスXPを設定します。7日目は特別ボーナスです。</div>
+      <div class="section">
+        <div class="section-head">連続ログインボーナス</div>
+        <div class="daily-grid" id="dailyGrid"></div>
+      </div>
+    </div>
+
+    <!-- Level Unlocks -->
+    <div class="page" id="page-unlock">
+      <div class="page-title">// LEVEL UNLOCKS</div>
+      <div class="page-desc">各レベルで解放されるページ・コンテンツを管理します。</div>
+      <div class="section">
+        <div class="section-head">解放設定</div>
+        <div id="unlockEditor"></div>
+      </div>
+    </div>
+
+    <!-- Simulation -->
+    <div class="page" id="page-sim">
+      <div class="page-title">// LEVEL PROGRESSION SIMULATOR</div>
+      <div class="page-desc">現在の設定でのレベル到達時間をシミュレートします。</div>
+      <div class="section">
+        <div class="section-head">プレイスタイル設定</div>
+        <div class="sim-card">
+          <div class="sim-title">// 1日のアクション数を入力</div>
+          <div id="simInputs"></div>
+          <div class="sim-result" id="simResult">— 計算ボタンを押してください —</div>
+          <div style="margin-top:12px">
+            <button onclick="runSimulation()" style="background:var(--cyan-dim);border:1px solid var(--cyan);color:var(--cyan);font-family:var(--mono);font-size:11px;padding:8px 20px;cursor:pointer;letter-spacing:.1em;">▶ シミュレーション実行</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- RAW JSON -->
+    <div class="page" id="page-json">
+      <div class="page-title">// RAW JSON EDITOR</div>
+      <div class="page-desc">progress-config.json の内容を直接編集します。保存ボタンで他のタブに反映されます。</div>
+      <div class="section">
+        <div class="section-head">JSON</div>
+        <textarea id="rawJson" style="width:100%;height:500px;background:var(--panel2);border:1px solid var(--border2);color:var(--green);padding:16px;font-family:var(--mono);font-size:12px;outline:none;resize:vertical;line-height:1.6"></textarea>
+        <div style="margin-top:10px;display:flex;gap:10px">
+          <button onclick="parseRawJson()" style="background:var(--green-dim);border:1px solid var(--green);color:var(--green);font-family:var(--mono);font-size:11px;padding:8px 18px;cursor:pointer;letter-spacing:.1em;">▶ JSONを解析して反映</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+const LEVEL_META = [
+  { label: 'LEVEL 0 — 見習い機関員', color: '#6b7280', max: 5000 },
+  { label: 'LEVEL 1 — 初級機関員', color: '#3b82f6', max: 5000 },
+  { label: 'LEVEL 2 — 中級機関員', color: '#8b5cf6', max: 5000 },
+  { label: 'LEVEL 3 — 上級機関員', color: '#10b981', max: 5000 },
+  { label: 'LEVEL 4 — ベテラン機関員', color: '#f59e0b', max: 10000 },
+  { label: 'LEVEL 5 — エリート機関員', color: '#ef4444', max: 10000 },
+];
+
+const REWARD_META = {
+  first_login:     { label: '初回ログイン', icon: '✦' },
+  profile_view:    { label: 'プロフィール閲覧', icon: '👤' },
+  chat_message:    { label: 'チャット送信', icon: '💬' },
+  division_view:   { label: '部門ページ閲覧', icon: '🏢' },
+  phenomenon_view: { label: '海蝕現象閲覧', icon: '🌊' },
+  mission_complete:{ label: 'ミッション完了', icon: '✅' },
+  daily_login:     { label: 'デイリーログイン', icon: '📅' },
+};
+
+// Default config (embedded)
+let config = {"levelThresholds": {"0": 0, "1": 100, "2": 250, "3": 500, "4": 1000, "5": 2000}, "levelUnlocks": {"0": ["index.html", "login.html", "dashboard.html"], "1": ["divisions.html", "chat.html", "map.html", "details/location-detail.html", "history.html"], "2": ["division-convergence.html", "division-support.html", "division-engineering.html", "division-foreign.html", "division-port.html", "details/entity-detail.html", "details/module-detail.html", "entities.html", "modules.html"], "3": ["phenomenon.html"], "4": ["missions.html", "search.html", "details/mission-detail.html"], "5": ["classified.html", "details/personnel-detail.html"]}, "xpRewards": {"first_login": 50, "profile_view": 10, "chat_message": 5, "division_view": 20, "phenomenon_view": 30, "mission_complete": 100, "daily_login": 25}, "dailyLoginRewards": {"1": 25, "2": 30, "3": 35, "4": 40, "5": 45, "6": 50, "7": 100}};
+
+function showPage(id, navEl) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  navEl.classList.add('active');
+  if (id === 'json') syncRawJson();
+}
+
+// ─── Level Thresholds ───
+function renderLevelRows() {
+  const container = document.getElementById('levelRows');
+  const thresholds = config.levelThresholds;
+  container.innerHTML = Object.keys(thresholds).map((lv, i) => {
+    const meta = LEVEL_META[i] || { label: 'LEVEL ' + lv, color: '#888', max: 5000 };
+    const val = thresholds[lv];
+    const prev = i > 0 ? thresholds[i-1] : 0;
+    const diff = i > 0 ? val - prev : 0;
+    return `<div class="level-row">
+      <div class="level-color-dot" style="background:${meta.color};box-shadow:0 0 6px ${meta.color}"></div>
+      <div class="level-name">${meta.label}</div>
+      <div class="level-code">LV${lv}</div>
+      <div class="xp-slider-wrap">
+        <input type="range" class="xp-slider" id="sl_${lv}" min="0" max="${meta.max}" value="${val}"
+          oninput="syncThreshold(${lv}, this.value)" ${lv == 0 ? 'disabled' : ''}>
+        <input type="number" class="xp-input" id="xpi_${lv}" value="${val}" min="0"
+          oninput="syncThreshold(${lv}, this.value)" ${lv == 0 ? 'readonly style=\'color:var(--text3)\'' : ''}>
+        XP
+      </div>
+      <div class="xp-diff">${diff > 0 ? '+'+diff.toLocaleString()+' XP' : '—'}</div>
+    </div>`;
+  }).join('');
+  drawCurve();
+}
+
+function syncThreshold(lv, val) {
+  config.levelThresholds[lv] = parseInt(val) || 0;
+  document.getElementById('sl_' + lv).value = val;
+  document.getElementById('xpi_' + lv).value = val;
+  // Recalc diffs
+  const rows = document.querySelectorAll('.xp-diff');
+  const keys = Object.keys(config.levelThresholds);
+  keys.forEach((k, i) => {
+    if (i > 0) {
+      const diff = config.levelThresholds[k] - config.levelThresholds[keys[i-1]];
+      rows[i].textContent = diff > 0 ? '+' + diff.toLocaleString() + ' XP' : '—';
+    }
+  });
+  drawCurve();
+}
+
+function drawCurve() {
+  const canvas = document.getElementById('curveCanvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  const thresholds = config.levelThresholds;
+  const keys = Object.keys(thresholds).map(Number);
+  const maxXp = Math.max(...Object.values(thresholds)) * 1.1 || 2200;
+  
+  ctx.clearRect(0, 0, W, H);
+  
+  // Grid
+  ctx.strokeStyle = '#1a2030';
+  ctx.lineWidth = 1;
+  for (let i = 0; i <= 4; i++) {
+    const y = H - 30 - (i/4) * (H-40);
+    ctx.beginPath(); ctx.moveTo(50, y); ctx.lineTo(W-10, y); ctx.stroke();
+    ctx.fillStyle = '#445060'; ctx.font = '9px Share Tech Mono';
+    ctx.fillText(Math.round(maxXp * i/4).toLocaleString(), 2, y+4);
+  }
+  for (let i = 0; i <= 5; i++) {
+    const x = 50 + i * ((W-60)/5);
+    ctx.beginPath(); ctx.moveTo(x, 10); ctx.lineTo(x, H-30); ctx.stroke();
+    ctx.fillStyle = '#445060';
+    ctx.fillText('LV'+i, x-8, H-12);
+  }
+  
+  // Curve
+  const grad = ctx.createLinearGradient(50, 0, W-10, 0);
+  grad.addColorStop(0, '#3b82f6');
+  grad.addColorStop(.4, '#8b5cf6');
+  grad.addColorStop(.7, '#10b981');
+  grad.addColorStop(1, '#ef4444');
+  
+  ctx.beginPath();
+  ctx.strokeStyle = grad;
+  ctx.lineWidth = 2.5;
+  keys.forEach((lv, i) => {
+    const x = 50 + lv * ((W-60)/5);
+    const y = H - 30 - (thresholds[lv] / maxXp) * (H-40);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  
+  // Dots
+  const colors = ['#6b7280','#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444'];
+  keys.forEach((lv, i) => {
+    const x = 50 + lv * ((W-60)/5);
+    const y = H - 30 - (thresholds[lv] / maxXp) * (H-40);
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = colors[i] || '#888';
+    ctx.fill();
+    ctx.strokeStyle = '#07090f'; ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.fillStyle = colors[i];
+    ctx.font = 'bold 9px Share Tech Mono';
+    ctx.fillText(thresholds[lv].toLocaleString(), x-12, y-10);
+  });
+}
+
+// ─── XP Rewards ───
+function renderRewards() {
+  const grid = document.getElementById('rewardGrid');
+  grid.innerHTML = Object.entries(config.xpRewards).map(([key, val]) => {
+    const meta = REWARD_META[key] || { label: key, icon: '▸' };
+    return `<div class="reward-card">
+      <div class="reward-icon">${meta.icon}</div>
+      <div class="reward-info">
+        <div class="reward-name">${meta.label}</div>
+        <div class="reward-key">${key}</div>
+      </div>
+      <input type="number" class="reward-input" id="rw_${key}" value="${val}" min="0"
+        oninput="config.xpRewards['${key}'] = parseInt(this.value)||0">
+      <div class="reward-unit">XP</div>
+    </div>`;
+  }).join('');
+}
+
+// ─── Daily Login ───
+function renderDaily() {
+  const grid = document.getElementById('dailyGrid');
+  grid.innerHTML = Object.entries(config.dailyLoginRewards).map(([day, val]) => `
+    <div class="daily-card ${day == 7 ? 'daily-7' : ''}">
+      ${day == 7 ? '<div class="special-badge">★ 特別</div>' : ''}
+      <div class="daily-day">${day}日目</div>
+      <input type="number" class="daily-input" id="dl_${day}" value="${val}" min="0"
+        oninput="config.dailyLoginRewards['${day}'] = parseInt(this.value)||0">
+      <div style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:4px">XP</div>
+    </div>`).join('');
+}
+
+// ─── Level Unlocks ───
+function renderUnlocks() {
+  const container = document.getElementById('unlockEditor');
+  const lv_colors = ['#6b7280','#3b82f6','#8b5cf6','#10b981','#f59e0b','#ef4444'];
+  container.innerHTML = Object.entries(config.levelUnlocks).map(([lv, pages]) => `
+    <div class="unlock-level-header">
+      <div class="level-color-dot" style="background:${lv_colors[lv]};box-shadow:0 0 4px ${lv_colors[lv]}"></div>
+      <span style="font-family:var(--mono);font-size:11px;color:${lv_colors[lv]};letter-spacing:.08em">LEVEL ${lv}</span>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-left:8px">${pages.length}ページ</span>
+    </div>
+    <div class="unlock-content" id="unlock_${lv}">
+      ${pages.map((page, i) => `<div class="unlock-item" id="ui_${lv}_${i}">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">▸</span>
+        <input class="unlock-input" type="text" value="${page}" data-lv="${lv}" data-idx="${i}"
+          oninput="updateUnlock(${lv}, ${i}, this.value)">
+        <button class="btn-remove" onclick="removeUnlock(${lv}, ${i})">✕</button>
+      </div>`).join('')}
+      <button class="btn-add-unlock" onclick="addUnlock(${lv})">+ ページを追加</button>
+    </div>`).join('');
+}
+
+function updateUnlock(lv, idx, val) {
+  config.levelUnlocks[lv][idx] = val;
+}
+function removeUnlock(lv, idx) {
+  config.levelUnlocks[lv].splice(idx, 1);
+  renderUnlocks();
+}
+function addUnlock(lv) {
+  config.levelUnlocks[lv].push('');
+  renderUnlocks();
+}
+
+// ─── Simulation ───
+function renderSimInputs() {
+  const container = document.getElementById('simInputs');
+  container.innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    ${Object.entries(config.xpRewards).map(([key, val]) => {
+      const meta = REWARD_META[key] || { label: key };
+      return `<div class="sim-row">
+        <div class="sim-label">${meta.label}</div>
+        <input type="number" id="sim_${key}" value="${key==='daily_login'?1:key==='first_login'?0:5}" min="0" style="width:60px;background:var(--panel);border:1px solid var(--border2);color:var(--cyan);padding:5px 8px;font-family:var(--mono);font-size:12px;outline:none;">
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">回/日</span>
+        <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">= ${val} XP/回</span>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function runSimulation() {
+  const dailyXp = Object.entries(config.xpRewards).reduce((sum, [key, val]) => {
+    const cnt = parseInt(document.getElementById('sim_' + key)?.value) || 0;
+    return sum + cnt * val;
+  }, 0);
+  
+  const thresholds = config.levelThresholds;
+  const levels = Object.keys(thresholds).map(Number).sort((a,b)=>a-b);
+  
+  let result = `1日の獲得XP: ${dailyXp.toLocaleString()} XP\n\n`;
+  result += '━━ レベル到達予測 ━━\n';
+  levels.forEach(lv => {
+    const needed = thresholds[lv];
+    if (needed === 0) { result += `LV${lv}: 初期状態\n`; return; }
+    const days = dailyXp > 0 ? Math.ceil(needed / dailyXp) : '∞';
+    result += `LV${lv}: ${needed.toLocaleString()} XP — ${days}日後\n`;
+  });
+  
+  document.getElementById('simResult').textContent = result;
+}
+
+// ─── RAW JSON ───
+function syncRawJson() {
+  document.getElementById('rawJson').value = JSON.stringify(config, null, 2);
+}
+
+function parseRawJson() {
+  try {
+    config = JSON.parse(document.getElementById('rawJson').value);
+    renderLevelRows();
+    renderRewards();
+    renderDaily();
+    renderUnlocks();
+    toast('JSONを読み込みました ✓', 'green');
+  } catch(e) {
+    toast('JSONパースエラー: ' + e.message);
+  }
+}
+
+// ─── Apply & Download ───
+function applyAll() {
+  // Read all current inputs back into config
+  // Level thresholds
+  Object.keys(config.levelThresholds).forEach(lv => {
+    const el = document.getElementById('xpi_' + lv);
+    if (el) config.levelThresholds[lv] = parseInt(el.value) || 0;
+  });
+  // XP rewards
+  Object.keys(config.xpRewards).forEach(key => {
+    const el = document.getElementById('rw_' + key);
+    if (el) config.xpRewards[key] = parseInt(el.value) || 0;
+  });
+  // Daily rewards
+  Object.keys(config.dailyLoginRewards).forEach(day => {
+    const el = document.getElementById('dl_' + day);
+    if (el) config.dailyLoginRewards[day] = parseInt(el.value) || 0;
+  });
+  
+  // Save to localStorage for the app to pick up
+  localStorage.setItem('kaishoku_progress_config_override', JSON.stringify(config));
+  toast('localStorageに保存しました ✓ (kaishoku_progress_config_override)', 'green');
+}
+
+function downloadJSON() {
+  const blob = new Blob([JSON.stringify(config, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'progress-config.json';
+  a.click();
+  toast('progress-config.json をダウンロードしました ✓', 'green');
+}
+
+function toast(msg, type='') {
+  const t = document.getElementById('toastEl');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.className = 'toast', 2800);
+}
+
+// ─── Init ───
+renderLevelRows();
+renderRewards();
+renderDaily();
+renderUnlocks();
+renderSimInputs();
+</script>
+</body>
+</html>

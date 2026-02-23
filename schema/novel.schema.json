@@ -1,0 +1,60 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "KaishokuNovel",
+  "description": "記録文庫（小説）データのスキーマ",
+  "type": "object",
+  "required": ["id", "title", "category", "securityLevel", "chapters"],
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^novel-"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "subtitle":  { "type": "string" },
+    "author":    { "type": "string" },
+    "date":      { "type": "string" },
+    "summary":   { "type": "string" },
+    "category": {
+      "type": "string",
+      "enum": ["作戦記録", "実体接触記録", "内部記録", "人物記録", "個人記録"]
+    },
+    "securityLevel": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "relatedPersonnel": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "relatedEntities": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "relatedMissions": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "chapters": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "content"],
+        "properties": {
+          "id":      { "type": "integer", "minimum": 1 },
+          "title":   { "type": "string", "minLength": 1 },
+          "content": { "type": "string" }
+        }
+      }
+    }
+  }
+}

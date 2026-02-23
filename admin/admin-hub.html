@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Hub — 海蝕機関</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#05070d;--panel:#0a0e16;--panel2:#0f1520;--border:#162030;--border2:#1e2d40;
+  --cyan:#00d4ff;--cyan-dim:#001c28;--green:#00e676;--green-dim:#001e10;
+  --yellow:#ffd740;--yellow-dim:#201800;--red:#ff5252;--red-dim:#200808;
+  --purple:#ce93d8;--orange:#ff9800;--blue:#4fc3f7;
+  --text:#cdd6e8;--text2:#6a7d94;--text3:#364858;
+  --mono:'Share Tech Mono',monospace;--sans:'Noto Sans JP',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;min-height:100vh;}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:
+    repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,212,255,.008) 3px,rgba(0,212,255,.008) 4px),
+    radial-gradient(ellipse at 20% 20%, rgba(0,212,255,.04) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 80%, rgba(0,230,118,.03) 0%, transparent 60%);
+}
+
+/* Header */
+.hdr{
+  background:linear-gradient(90deg,#05070d,#080d18,#05070d);
+  border-bottom:1px solid var(--border2);
+  padding:0 32px;height:64px;display:flex;align-items:center;gap:16px;
+  position:sticky;top:0;z-index:100;
+}
+.hdr-logo{
+  width:36px;height:36px;border:1px solid var(--cyan);display:flex;align-items:center;
+  justify-content:center;font-family:var(--mono);font-size:14px;color:var(--cyan);
+  position:relative;flex-shrink:0;
+}
+.hdr-logo::before{content:'';position:absolute;inset:2px;border:1px solid var(--cyan);opacity:.3;}
+.hdr-org{display:flex;flex-direction:column;}
+.hdr-org-main{font-family:var(--mono);font-size:13px;color:var(--cyan);letter-spacing:.25em;}
+.hdr-org-sub{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.15em;margin-top:2px;}
+.hdr-sep{flex:1;}
+.hdr-time{font-family:var(--mono);font-size:11px;color:var(--text3);}
+.hdr-status{display:flex;align-items:center;gap:6px;}
+.hdr-status-dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 6px var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.6;transform:scale(.9)}}
+.hdr-status-txt{font-family:var(--mono);font-size:10px;color:var(--green);letter-spacing:.1em;}
+
+/* Layout */
+.layout{max-width:1400px;margin:0 auto;padding:32px;}
+
+/* System status strip */
+.status-strip{
+  display:flex;gap:1px;margin-bottom:32px;overflow:hidden;border:1px solid var(--border2);
+}
+.status-item{
+  flex:1;background:var(--panel);padding:16px 20px;display:flex;flex-direction:column;gap:4px;
+  border-right:1px solid var(--border);transition:background .15s;
+}
+.status-item:last-child{border-right:none;}
+.status-item:hover{background:var(--panel2);}
+.status-val{font-family:var(--mono);font-size:24px;font-weight:400;line-height:1;}
+.status-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;}
+.status-change{font-family:var(--mono);font-size:10px;margin-top:2px;}
+
+/* Section */
+.section{margin-bottom:32px;}
+.section-header{
+  display:flex;align-items:center;gap:12px;margin-bottom:16px;
+  padding-bottom:10px;border-bottom:1px solid var(--border);
+}
+.section-line{width:3px;height:16px;flex-shrink:0;}
+.section-title{font-family:var(--mono);font-size:11px;letter-spacing:.2em;text-transform:uppercase;}
+.section-count{font-family:var(--mono);font-size:10px;color:var(--text3);margin-left:auto;}
+
+/* Tool grid */
+.tool-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;}
+.tool-card{
+  background:var(--panel);border:1px solid var(--border);
+  padding:18px 20px;cursor:pointer;text-decoration:none;display:block;
+  transition:all .2s;position:relative;overflow:hidden;
+}
+.tool-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:2px;
+  background:var(--accent);opacity:.6;
+  transition:opacity .2s;
+}
+.tool-card:hover{background:var(--panel2);border-color:var(--border2);}
+.tool-card:hover::before{opacity:1;}
+.tool-card-icon{font-family:var(--mono);font-size:22px;color:var(--accent);margin-bottom:10px;line-height:1;}
+.tool-card-title{font-size:14px;font-weight:500;color:var(--text);margin-bottom:4px;}
+.tool-card-desc{font-size:11px;color:var(--text2);line-height:1.5;}
+.tool-card-badge{
+  position:absolute;top:12px;right:12px;
+  font-family:var(--mono);font-size:9px;padding:2px 7px;
+  border-radius:2px;letter-spacing:.08em;
+}
+.tool-card-new{
+  position:absolute;top:12px;right:12px;
+  background:var(--green-dim);border:1px solid var(--green);color:var(--green);
+  font-family:var(--mono);font-size:8px;padding:2px 6px;letter-spacing:.1em;
+}
+
+/* Activity feed */
+.activity-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.activity-panel{background:var(--panel);border:1px solid var(--border);}
+.activity-head{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.activity-head-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);}
+.activity-head-title{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;}
+.activity-body{padding:12px 16px;}
+.activity-row{display:flex;gap:10px;padding:7px 0;border-bottom:1px solid var(--border);align-items:flex-start;}
+.activity-row:last-child{border-bottom:none;}
+.activity-time{font-family:var(--mono);font-size:9px;color:var(--text3);min-width:80px;flex-shrink:0;padding-top:1px;}
+.activity-text{font-size:12px;color:var(--text2);line-height:1.4;}
+.activity-tag{font-family:var(--mono);font-size:9px;padding:1px 6px;border-radius:2px;margin-top:3px;display:inline-block;}
+
+/* localStorage health */
+.health-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;}
+.health-item{background:var(--panel);border:1px solid var(--border);padding:12px 14px;display:flex;gap:10px;align-items:center;}
+.health-status{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.health-key{font-family:var(--mono);font-size:10px;color:var(--text2);flex:1;word-break:break-all;}
+.health-size{font-family:var(--mono);font-size:9px;color:var(--text3);}
+
+/* Footer */
+.footer{text-align:center;padding:24px;font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.1em;border-top:1px solid var(--border);margin-top:16px;}
+
+.toast{position:fixed;bottom:20px;right:20px;background:var(--panel);border:1px solid var(--cyan);color:var(--cyan);font-family:var(--mono);font-size:11px;padding:10px 16px;opacity:0;transform:translateY(8px);transition:all .25s;pointer-events:none;z-index:9998;}
+.toast.show{opacity:1;transform:translateY(0);}
+
+::-webkit-scrollbar{width:4px;}::-webkit-scrollbar-track{background:transparent;}::-webkit-scrollbar-thumb{background:var(--border2);}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-logo">K</div>
+  <div class="hdr-org">
+    <div class="hdr-org-main">海蝕機関</div>
+    <div class="hdr-org-sub">ADMIN CONTROL HUB</div>
+  </div>
+  <div class="hdr-sep"></div>
+  <div class="hdr-status">
+    <div class="hdr-status-dot"></div>
+    <div class="hdr-status-txt">SYSTEM ONLINE</div>
+  </div>
+  <div class="hdr-time" id="clock"></div>
+</div>
+
+<div class="layout">
+
+  <!-- Status Strip -->
+  <div class="status-strip" id="statusStrip">
+    <div class="status-item">
+      <div class="status-val" style="color:var(--cyan)" id="st_users">—</div>
+      <div class="status-lbl">登録機関員</div>
+    </div>
+    <div class="status-item">
+      <div class="status-val" style="color:var(--green)" id="st_lv5">—</div>
+      <div class="status-lbl">LV5到達</div>
+    </div>
+    <div class="status-item">
+      <div class="status-val" style="color:var(--yellow)" id="st_messages">—</div>
+      <div class="status-lbl">チャットメッセージ</div>
+    </div>
+    <div class="status-item">
+      <div class="status-val" style="color:var(--purple)" id="st_story">—</div>
+      <div class="status-lbl">ストーリーフラグON</div>
+    </div>
+    <div class="status-item">
+      <div class="status-val" style="color:var(--orange)" id="st_incidents">—</div>
+      <div class="status-lbl">アクティブ事案</div>
+    </div>
+    <div class="status-item">
+      <div class="status-val" style="color:var(--red)" id="st_anomaly">—</div>
+      <div class="status-lbl">最高異常スコア</div>
+    </div>
+  </div>
+
+  <!-- Data Management -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-line" style="background:var(--cyan)"></div>
+      <div class="section-title" style="color:var(--cyan)">データ管理</div>
+    </div>
+    <div class="tool-grid">
+      <a class="tool-card" style="--accent:var(--cyan)" href="./player-admin.html">
+        <div class="tool-card-icon">👤</div>
+        <div class="tool-card-title">機関員管理</div>
+        <div class="tool-card-desc">プレイヤーのXP・レベル・部門・ストーリー状態を直接編集</div>
+      </a>
+      <a class="tool-card" style="--accent:var(--cyan)" href="./novel-editor.html">
+        <div class="tool-card-new" style="background:rgba(0,212,255,.15);border-color:var(--cyan);color:var(--cyan);">NEW</div>
+        <div class="tool-card-icon">📖</div>
+        <div class="tool-card-title">記録文庫エディタ</div>
+        <div class="tool-card-desc">小説・チャプター・埋め込み構文のGUI編集。関連データの設定・エクスポート</div>
+      </a>
+      <a class="tool-card" style="--accent:var(--blue)" href="./json-editor.html">
+        <div class="tool-card-icon">📁</div>
+        <div class="tool-card-title">JSONデータエディタ</div>
+        <div class="tool-card-desc">実体・ミッション・職員・モジュール・ロケーションデータの編集</div>
+      </a>
+      <a class="tool-card" style="--accent:var(--red)" href="./classified-editor.html">
+        <div class="tool-card-icon">🔐</div>
+        <div class="tool-card-title">機密文書エディタ</div>
+        <div class="tool-card-desc">LEVEL5専用コンテンツ・機密文書の作成・フラグ連動設定</div>
+      </a>
+      <a class="tool-card" style="--accent:var(--orange)" href="./map-admin.html">
+        <div class="tool-card-icon">🗺</div>
+        <div class="tool-card-title">マップ管理</div>
+        <div class="tool-card-desc">インシデントピンの位置・重大度・担当部門をビジュアル編集</div>
+      </a>
+    </div>
+  </div>
+
+  <!-- Game Design -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-line" style="background:var(--yellow)"></div>
+      <div class="section-title" style="color:var(--yellow)">ゲームデザイン</div>
+    </div>
+    <div class="tool-grid">
+      <a class="tool-card" style="--accent:var(--yellow)" href="./balance-editor.html">
+        <div class="tool-card-icon">⚖</div>
+        <div class="tool-card-title">ゲームバランス調整</div>
+        <div class="tool-card-desc">レベル閾値・XP報酬・デイリーボーナスをグラフ付きで調整</div>
+      </a>
+      <a class="tool-card" style="--accent:var(--purple)" href="./message-editor.html">
+        <div class="tool-card-icon">✎</div>
+        <div class="tool-card-title">メッセージ管理</div>
+        <div class="tool-card-desc">ランク名・ウェルカム・ヒント・レベルアップメッセージを編集</div>
+      </a>
+      <a class="tool-card" style="--accent:var(--green)" href="./qa-checker.html">
+        <div class="tool-card-icon">✓</div>
+        <div class="tool-card-title">QAチェッカー</div>
+        <div class="tool-card-desc">レベル・フラグを設定して「このプレイヤーに何が見えるか」をプレビュー</div>
+      </a>
+    </div>
+  </div>
+
+  <!-- Analytics -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-line" style="background:var(--orange)"></div>
+      <div class="section-title" style="color:var(--orange)">解析 / 監視</div>
+    </div>
+    <div class="tool-grid">
+      <a class="tool-card" style="--accent:var(--orange)" href="./player-analytics.html">
+        <div class="tool-card-new" style="background:rgba(255,152,0,.12);border-color:var(--orange);color:var(--orange);">NEW</div>
+        <div class="tool-card-icon">📊</div>
+        <div class="tool-card-title">プレイヤー行動解析</div>
+        <div class="tool-card-desc">閲覧ヒートマップ・異常スコア推移・精神崩壊直前パターン・ファネル分析</div>
+      </a>
+      <a class="tool-card" style="--accent:var(--green)" href="./data-snapshot.html">
+        <div class="tool-card-new" style="background:rgba(0,230,118,.1);border-color:var(--green);color:var(--green);">NEW</div>
+        <div class="tool-card-icon">📦</div>
+        <div class="tool-card-title">データスナップショット</div>
+        <div class="tool-card-desc">全状態の一括保存・バージョンタグ付与・スナップショット間の差分比較</div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ARG / Story -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-line" style="background:var(--purple)"></div>
+      <div class="section-title" style="color:var(--purple)">ARG / ストーリー</div>
+    </div>
+    <div class="tool-grid">
+      <a class="tool-card" style="--accent:var(--purple)" href="./story-engine-admin.html">
+        <div class="tool-card-new" style="background:rgba(168,85,247,.12);border-color:var(--purple);color:var(--purple);">NEW</div>
+        <div class="tool-card-icon">⚡</div>
+        <div class="tool-card-title">ストーリーエンジン管理</div>
+        <div class="tool-card-desc">ARGイベント発火状況・フラグ操作・キーワードテスト・強制発火・フェーズ確認</div>
+      </a>
+      <a class="tool-card" style="--accent:var(--purple)" href="./chat-viewer.html">
+        <div class="tool-card-icon">💬</div>
+        <div class="tool-card-title">チャットログビューア</div>
+        <div class="tool-card-desc">ARGキーワード検出・メッセージ削除・モデレーション</div>
+      </a>
+    </div>
+  </div>
+
+  <!-- System / Console -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-line" style="background:var(--green)"></div>
+      <div class="section-title" style="color:var(--green)">システム</div>
+    </div>
+    <div class="tool-grid">
+      <a class="tool-card" style="--accent:var(--green)" href="./console-admin.html">
+        <div class="tool-card-icon">⌨</div>
+        <div class="tool-card-title">コンソール管理</div>
+        <div class="tool-card-desc">コンソールコマンド・キーワード・レスポンスを管理</div>
+      </a>
+    </div>
+  </div>
+
+  <!-- localStorage Health -->
+  <div class="section">
+    <div class="section-header">
+      <div class="section-line" style="background:var(--text3)"></div>
+      <div class="section-title" style="color:var(--text3)">ストレージ状態</div>
+      <button onclick="refreshHealth()" style="margin-left:auto;background:none;border:1px solid var(--border2);color:var(--text3);font-family:var(--mono);font-size:9px;padding:3px 10px;cursor:pointer;letter-spacing:.06em;">↺ 更新</button>
+    </div>
+    <div class="health-grid" id="healthGrid"></div>
+  </div>
+
+  <div class="footer">KAISHOKU AGENCY // ADMIN CONTROL HUB // ALL SYSTEMS NOMINAL</div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+const LS_KEYS = [
+  'kaishoku_current_user','kaishoku_users','kaishoku_messages',
+  'kaishoku_progress','kaishoku_story_state','kaishoku_view_history',
+  'kaishoku_bookmarks','kaishoku_reports','kaishoku_secret_salt',
+  'kaishoku_progress_config_override','kaishoku_level_messages_override',
+  'kaishoku_map_incidents_override','kaishoku_area_incidents_override',
+  'kaishoku_classified_docs',
+];
+
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleString('ja-JP');
+}
+
+function refreshStats() {
+  // Users
+  try {
+    const users = JSON.parse(localStorage.getItem('kaishoku_users')||'[]');
+    document.getElementById('st_users').textContent = users.length;
+    const prog = JSON.parse(localStorage.getItem('kaishoku_progress')||'{}');
+    let lv5 = 0;
+    users.forEach(u => { if ((prog[u.id]?.level||0) >= 5) lv5++; });
+    document.getElementById('st_lv5').textContent = lv5;
+  } catch(e) { document.getElementById('st_users').textContent='err'; }
+
+  // Messages
+  try {
+    const msgs = JSON.parse(localStorage.getItem('kaishoku_messages')||'{}');
+    const total = Object.values(msgs).reduce((s,a)=>s+a.length,0);
+    document.getElementById('st_messages').textContent = total;
+  } catch(e) { document.getElementById('st_messages').textContent='0'; }
+
+  // Story
+  try {
+    const state = JSON.parse(localStorage.getItem('kaishoku_story_state')||'{}');
+    const flags = state.flags||{};
+    const on = Object.values(flags).filter(Boolean).length;
+    document.getElementById('st_story').textContent = on;
+    const anomaly = state.variables?.anomaly_score || 0;
+    document.getElementById('st_anomaly').textContent = anomaly;
+  } catch(e) { document.getElementById('st_story').textContent='0'; }
+
+  // Incidents
+  try {
+    const inc = JSON.parse(localStorage.getItem('kaishoku_map_incidents_override')||'null');
+    const active = inc ? inc.incidents.filter(i=>i.status==='対応中').length : '—';
+    document.getElementById('st_incidents').textContent = active;
+  } catch(e) { document.getElementById('st_incidents').textContent='—'; }
+}
+
+function refreshHealth() {
+  const el = document.getElementById('healthGrid');
+  el.innerHTML = LS_KEYS.map(key => {
+    const val = localStorage.getItem(key);
+    const exists = val !== null;
+    const size = val ? new Blob([val]).size : 0;
+    const sizeStr = size > 1024 ? (size/1024).toFixed(1)+'KB' : size+'B';
+    return `<div class="health-item">
+      <div class="health-status" style="background:${exists?'var(--green)':'var(--border2)'};box-shadow:${exists?'0 0 4px var(--green)':'none'}"></div>
+      <div class="health-key">${key.replace('kaishoku_','')}</div>
+      ${exists?`<div class="health-size">${sizeStr}</div>`:'<div class="health-size" style="color:var(--text3)">未設定</div>'}
+    </div>`;
+  }).join('');
+}
+
+updateClock();
+setInterval(updateClock, 1000);
+refreshStats();
+setInterval(refreshStats, 5000);
+refreshHealth();
+</script>
+</body>
+</html>

@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>記録文庫エディタ — 海蝕機関</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07090f;--panel:#0c1018;--panel2:#111620;--border:#1a2030;--border2:#263040;
+  --cyan:#00d4ff;--cyan-dim:#00202e;--green:#00e676;--green-dim:#002810;
+  --yellow:#ffd740;--yellow-dim:#2a2000;--red:#ff5252;--red-dim:#2a0808;
+  --purple:#ce93d8;--orange:#ff9800;--blue:#4fc3f7;
+  --text:#cdd6e8;--text2:#7a8aa0;--text3:#445060;
+  --mono:'Share Tech Mono',monospace;--sans:'Noto Sans JP',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;min-height:100vh;display:flex;flex-direction:column;}
+body::before{content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,212,255,.008) 3px,rgba(0,212,255,.008) 4px);}
+
+.hdr{background:var(--panel);border-bottom:1px solid var(--border2);padding:0 24px;height:50px;display:flex;align-items:center;gap:14px;position:sticky;top:0;z-index:100;}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--cyan);box-shadow:0 0 8px var(--cyan);animation:blink 2s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.hdr-title{font-family:var(--mono);font-size:12px;color:var(--cyan);letter-spacing:.2em;}
+.hdr-sub{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.hdr-sep{flex:1;}
+.btn{background:none;border:1px solid var(--border2);color:var(--text2);font-family:var(--mono);font-size:10px;padding:6px 14px;cursor:pointer;letter-spacing:.08em;transition:all .15s;}
+.btn:hover{border-color:var(--cyan);color:var(--cyan);}
+.btn-cyan{background:var(--cyan-dim);border-color:var(--cyan);color:var(--cyan);}
+.btn-cyan:hover{background:#003040;}
+.btn-green{background:var(--green-dim);border-color:var(--green);color:var(--green);}
+.btn-green:hover{background:#004020;}
+.btn-red{background:var(--red-dim);border-color:var(--red);color:var(--red);}
+.btn-red:hover{background:#400808;}
+.btn-yellow{background:var(--yellow-dim);border-color:var(--yellow);color:var(--yellow);}
+
+.main{display:flex;flex:1;overflow:hidden;height:calc(100vh - 50px);}
+
+/* Sidebar */
+.sidebar{width:260px;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;}
+.sidebar-hdr{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.sidebar-title{font-family:var(--mono);font-size:10px;color:var(--cyan);letter-spacing:.12em;flex:1;}
+.novel-list{overflow-y:auto;flex:1;}
+.novel-item{padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .1s;position:relative;}
+.novel-item:hover{background:var(--panel2);}
+.novel-item.active{background:var(--cyan-dim);border-left:2px solid var(--cyan);}
+.novel-id{font-family:var(--mono);font-size:9px;color:var(--text3);margin-bottom:3px;}
+.novel-title-sm{font-size:12px;color:var(--text);margin-bottom:4px;line-height:1.4;}
+.novel-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.cat-badge{font-family:var(--mono);font-size:9px;padding:1px 6px;border-radius:2px;}
+.sec-badge{font-family:var(--mono);font-size:9px;}
+.ch-count{font-family:var(--mono);font-size:9px;color:var(--text3);margin-left:auto;}
+
+/* Editor area */
+.editor{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+.editor-tabs{display:flex;background:var(--panel);border-bottom:1px solid var(--border);}
+.tab{padding:10px 18px;font-family:var(--mono);font-size:10px;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;letter-spacing:.06em;transition:color .15s;}
+.tab:hover{color:var(--text);}
+.tab.active{color:var(--cyan);border-bottom-color:var(--cyan);}
+.tab-body{flex:1;overflow-y:auto;padding:20px 24px;}
+.tab-pane{display:none;}
+.tab-pane.active{display:block;}
+
+.empty{height:100%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--text3);}
+.empty-icon{font-size:32px;opacity:.3;}
+
+/* Form */
+.form-section{margin-bottom:24px;}
+.form-section-title{font-family:var(--mono);font-size:10px;color:var(--text3);letter-spacing:.15em;text-transform:uppercase;padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:14px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field.full{grid-column:span 2;}
+.field-label{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.1em;text-transform:uppercase;}
+.field-input{background:var(--panel2);border:1px solid var(--border2);color:var(--text);padding:7px 10px;font-family:var(--sans);font-size:12px;outline:none;transition:border-color .15s;width:100%;}
+.field-input:focus{border-color:var(--cyan);}
+textarea.field-input{resize:vertical;min-height:80px;font-family:var(--mono);font-size:11px;line-height:1.6;}
+select.field-input{cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237a8aa0'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 8px center;padding-right:24px;}
+
+/* Tags */
+.tags-wrap{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px;}
+.tag-chip{display:flex;align-items:center;gap:4px;padding:2px 8px;background:var(--panel2);border:1px solid var(--border2);font-family:var(--mono);font-size:9px;color:var(--text2);}
+.tag-remove{background:none;border:none;color:var(--text3);cursor:pointer;font-size:11px;padding:0;line-height:1;}
+.tag-remove:hover{color:var(--red);}
+.tag-add-row{display:flex;gap:6px;}
+
+/* Chapter list */
+.chapter-list{display:flex;flex-direction:column;gap:0;}
+.chapter-item{border:1px solid var(--border);margin-bottom:6px;background:var(--panel2);}
+.chapter-header{display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;}
+.chapter-handle{font-family:var(--mono);font-size:11px;color:var(--text3);cursor:grab;}
+.chapter-num{font-family:var(--mono);font-size:9px;color:var(--text3);width:40px;flex-shrink:0;}
+.chapter-title-display{font-size:12px;color:var(--text);flex:1;}
+.chapter-toggle{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.chapter-body{padding:14px;border-top:1px solid var(--border);display:none;}
+.chapter-body.open{display:block;}
+.chapter-actions{display:flex;gap:6px;margin-top:10px;}
+
+/* Syntax reference */
+.syntax-ref{background:var(--panel2);border:1px solid var(--border);padding:12px 14px;font-family:var(--mono);font-size:10px;color:var(--text3);line-height:1.8;margin-bottom:16px;}
+.syntax-ref code{color:var(--cyan);background:rgba(0,212,255,.06);padding:0 4px;}
+
+/* Related fields */
+.related-list{display:flex;flex-direction:column;gap:4px;margin-bottom:8px;}
+.related-item{display:flex;align-items:center;gap:6px;padding:5px 8px;background:var(--panel2);border:1px solid var(--border);}
+.related-id{font-family:var(--mono);font-size:10px;color:var(--cyan);}
+.related-remove{margin-left:auto;background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;}
+.related-remove:hover{color:var(--red);}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;z-index:1000;display:flex;flex-direction:column;gap:6px;}
+.toast-item{padding:10px 16px;background:var(--green-dim);border:1px solid var(--green);color:var(--green);font-family:var(--mono);font-size:10px;letter-spacing:.08em;animation:fadeIn .2s;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* Export panel */
+.export-box{background:var(--panel2);border:1px solid var(--border2);padding:16px;}
+.export-json{font-family:var(--mono);font-size:10px;color:var(--text2);line-height:1.6;white-space:pre-wrap;max-height:360px;overflow-y:auto;margin-top:10px;border:1px solid var(--border);padding:10px;}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-dot"></div>
+  <div class="hdr-title">記録文庫エディタ</div>
+  <div class="hdr-sub">NOVEL MANAGEMENT SYSTEM</div>
+  <div class="hdr-sep"></div>
+  <button class="btn btn-cyan" onclick="createNovel()">＋ 新規作成</button>
+  <a href="./admin-hub.html" class="btn" style="margin-left:6px;">← HUB</a>
+</div>
+
+<div class="main">
+  <div class="sidebar">
+    <div class="sidebar-hdr">
+      <div class="sidebar-title">記録一覧</div>
+      <span id="novelCount" style="font-family:var(--mono);font-size:9px;color:var(--text3);">0件</span>
+    </div>
+    <div class="novel-list" id="novelList"></div>
+  </div>
+
+  <div class="editor">
+    <div id="editorEmpty" class="empty" style="height:100%;display:flex;">
+      <div class="empty-icon">📖</div>
+      <div style="font-family:var(--mono);font-size:11px;letter-spacing:.1em;">左の一覧から記録を選択</div>
+    </div>
+
+    <div id="editorMain" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+      <div class="editor-tabs">
+        <div class="tab active" onclick="switchTab('meta')">基本情報</div>
+        <div class="tab" onclick="switchTab('chapters')">チャプター</div>
+        <div class="tab" onclick="switchTab('related')">関連データ</div>
+        <div class="tab" onclick="switchTab('export')">エクスポート</div>
+      </div>
+      <div class="tab-body">
+
+        <!-- META TAB -->
+        <div class="tab-pane active" id="tab-meta">
+          <div class="form-section">
+            <div class="form-section-title">識別情報</div>
+            <div class="form-grid">
+              <div class="field"><div class="field-label">ID</div><input class="field-input" id="f-id" placeholder="novel-001"></div>
+              <div class="field"><div class="field-label">セキュリティLv</div>
+                <select class="field-input" id="f-sec">
+                  <option value="1">Lv.1 公開</option>
+                  <option value="2">Lv.2 機密</option>
+                  <option value="3">Lv.3 極秘</option>
+                </select>
+              </div>
+              <div class="field full"><div class="field-label">タイトル</div><input class="field-input" id="f-title" placeholder="記録タイトル"></div>
+              <div class="field full"><div class="field-label">サブタイトル</div><input class="field-input" id="f-subtitle" placeholder="状況・日時など"></div>
+              <div class="field"><div class="field-label">著者</div><input class="field-input" id="f-author" placeholder="海蝕機関 記録部"></div>
+              <div class="field"><div class="field-label">記録日</div><input class="field-input" id="f-date" type="date"></div>
+              <div class="field">
+                <div class="field-label">カテゴリ</div>
+                <select class="field-input" id="f-category">
+                  <option>作戦記録</option><option>実体接触記録</option><option>内部記録</option><option>人物記録</option><option>個人記録</option>
+                </select>
+              </div>
+              <div class="field full"><div class="field-label">あらすじ</div><textarea class="field-input" id="f-summary" rows="3" placeholder="記録の概要"></textarea></div>
+            </div>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title">タグ</div>
+            <div class="tags-wrap" id="tagsWrap"></div>
+            <div class="tag-add-row">
+              <input class="field-input" id="tagInput" placeholder="タグを追加" style="flex:1;" onkeydown="if(event.key==='Enter')addTag()">
+              <button class="btn btn-cyan" onclick="addTag()">追加</button>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;padding-top:12px;border-top:1px solid var(--border);">
+            <button class="btn btn-green" onclick="saveNovel()">✓ 保存</button>
+            <button class="btn btn-red" onclick="deleteNovel()">✕ 削除</button>
+          </div>
+        </div>
+
+        <!-- CHAPTERS TAB -->
+        <div class="tab-pane" id="tab-chapters">
+          <div class="syntax-ref">
+            <div style="color:var(--cyan);margin-bottom:6px;letter-spacing:.1em;">■ 埋め込み構文リファレンス</div>
+            <code>[PERSONNEL:K-001-234]</code> <code>[ENTITY:E-010]</code> <code>[MODULE:M-002]</code><br>
+            <code>[LOCATION:loc-001]</code> <code>[INCIDENT:inc-001]</code><br>
+            <code>[CHAT|送信者:本文|...|INPUT:固定テキスト&gt;&gt;RESPONSE:反応]</code><br>
+            <code>[CONSOLE|時刻:内容:type|...|CMD:コマンド&gt;&gt;RESULT:結果]</code><br>
+            <code>[REDACTED:機密テキスト]</code> <code>[DIARY:日付:本文]</code><br>
+            <code>[ALERT:critical:メッセージ]</code> <code>[SCAN:対象|key:val|...]</code><br>
+            末尾に <code>|REVEAL</code> を付けるとスクロール検知→2秒遅延表示
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+            <span style="font-family:var(--mono);font-size:10px;color:var(--text3);" id="chapterCountLabel">0 チャプター</span>
+            <button class="btn btn-cyan" onclick="addChapter()">＋ チャプター追加</button>
+          </div>
+          <div class="chapter-list" id="chapterList"></div>
+        </div>
+
+        <!-- RELATED TAB -->
+        <div class="tab-pane" id="tab-related">
+          <div class="form-section">
+            <div class="form-section-title">関連人員</div>
+            <div class="related-list" id="relPersonnel"></div>
+            <div class="tag-add-row"><input class="field-input" id="addPersonnelInput" placeholder="K-001-234" style="flex:1;" onkeydown="if(event.key==='Enter')addRelated('personnel')"><button class="btn btn-cyan" onclick="addRelated('personnel')">追加</button></div>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title">関連実体</div>
+            <div class="related-list" id="relEntities"></div>
+            <div class="tag-add-row"><input class="field-input" id="addEntityInput" placeholder="E-010" style="flex:1;" onkeydown="if(event.key==='Enter')addRelated('entity')"><button class="btn btn-cyan" onclick="addRelated('entity')">追加</button></div>
+          </div>
+          <div class="form-section">
+            <div class="form-section-title">関連任務</div>
+            <div class="related-list" id="relMissions"></div>
+            <div class="tag-add-row"><input class="field-input" id="addMissionInput" placeholder="MISSION-2025-XXX" style="flex:1;" onkeydown="if(event.key==='Enter')addRelated('mission')"><button class="btn btn-cyan" onclick="addRelated('mission')">追加</button></div>
+          </div>
+          <button class="btn btn-green" onclick="saveNovel()">✓ 保存</button>
+        </div>
+
+        <!-- EXPORT TAB -->
+        <div class="tab-pane" id="tab-export">
+          <div class="export-box">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+              <span style="font-family:var(--mono);font-size:10px;color:var(--text3);">現在の記録データ（JSON）</span>
+              <button class="btn btn-cyan" onclick="copyExport()" style="margin-left:auto;">コピー</button>
+              <button class="btn" onclick="downloadExport()">ダウンロード</button>
+            </div>
+            <div class="export-json" id="exportJson"></div>
+          </div>
+          <div style="margin-top:16px;">
+            <div style="font-family:var(--mono);font-size:10px;color:var(--text3);margin-bottom:8px;">全記録エクスポート</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button class="btn btn-yellow" onclick="exportAll()">📄 全記録 JSON</button>
+              <button class="btn" style="border-color:var(--yellow);color:var(--yellow);background:var(--yellow-dim);" onclick="exportZip()">📦 全記録 ZIP</button>
+              <button class="btn" style="border-color:var(--cyan);color:var(--cyan);" onclick="importZip()">📥 ZIP インポート</button>
+            </div>
+            <input type="file" id="importZipFile" accept=".zip" style="display:none" onchange="handleImportZip(event)">
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+const CAT_COLORS = {
+  '作戦記録':     {bg:'rgba(239,68,68,.15)',border:'rgba(239,68,68,.5)',text:'rgb(239,68,68)'},
+  '実体接触記録': {bg:'rgba(16,185,129,.15)',border:'rgba(16,185,129,.5)',text:'rgb(16,185,129)'},
+  '内部記録':     {bg:'rgba(0,212,255,.1)',border:'rgba(0,212,255,.35)',text:'#00d4ff'},
+  '人物記録':     {bg:'rgba(168,85,247,.15)',border:'rgba(168,85,247,.5)',text:'rgb(168,85,247)'},
+  '個人記録':     {bg:'rgba(255,152,0,.15)',border:'rgba(255,152,0,.5)',text:'rgb(255,152,0)'},
+};
+const SEC = {1:{label:'公開',color:'#00e676'},2:{label:'機密',color:'#ffd740'},3:{label:'極秘',color:'#ff5252'}};
+
+let novels = [];
+let current = null;
+
+// ── Load from novels-data.json (same origin) ─────────────────
+function loadData() {
+  fetch('../data/novels-data.json')
+    .then(r=>r.json())
+    .then(d=>{
+      novels = d.novels || [];
+      renderList();
+    })
+    .catch(()=>{
+      // Try localStorage backup
+      const raw = localStorage.getItem('kaishoku_novels_admin');
+      if (raw) { novels = JSON.parse(raw); renderList(); }
+    });
+}
+
+function renderList() {
+  const el = document.getElementById('novelList');
+  document.getElementById('novelCount').textContent = novels.length + '件';
+  el.innerHTML = novels.map((n,i) => {
+    const cat = CAT_COLORS[n.category] || CAT_COLORS['内部記録'];
+    const sec = SEC[n.securityLevel] || SEC[1];
+    return `<div class="novel-item${current && current.id===n.id?' active':''}" onclick="selectNovel(${i})">
+      <div class="novel-id">${n.id}</div>
+      <div class="novel-title-sm">${n.title}</div>
+      <div class="novel-meta">
+        <span class="cat-badge" style="background:${cat.bg};border:1px solid ${cat.border};color:${cat.text}">${n.category}</span>
+        <span class="sec-badge" style="color:${sec.color}">Lv${n.securityLevel}</span>
+        <span class="ch-count">${n.chapters.length}ch</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectNovel(i) {
+  current = JSON.parse(JSON.stringify(novels[i]));
+  renderList();
+  document.getElementById('editorEmpty').style.display = 'none';
+  document.getElementById('editorMain').style.display = 'flex';
+  fillForm();
+  updateExport();
+}
+
+function fillForm() {
+  if (!current) return;
+  document.getElementById('f-id').value = current.id || '';
+  document.getElementById('f-title').value = current.title || '';
+  document.getElementById('f-subtitle').value = current.subtitle || '';
+  document.getElementById('f-author').value = current.author || '';
+  document.getElementById('f-date').value = current.date || '';
+  document.getElementById('f-summary').value = current.summary || '';
+  document.getElementById('f-sec').value = current.securityLevel || 1;
+  document.getElementById('f-category').value = current.category || '内部記録';
+  renderTags();
+  renderChapters();
+  renderRelated();
+}
+
+// ── Tags ─────────────────────────────────────────────────────
+function renderTags() {
+  const tags = current.tags || [];
+  document.getElementById('tagsWrap').innerHTML = tags.map((t,i) =>
+    `<span class="tag-chip">#${t}<button class="tag-remove" onclick="removeTag(${i})">×</button></span>`
+  ).join('');
+}
+function addTag() {
+  const inp = document.getElementById('tagInput');
+  const v = inp.value.trim().replace(/^#/,'');
+  if (!v) return;
+  if (!current.tags) current.tags = [];
+  current.tags.push(v);
+  inp.value = '';
+  renderTags();
+}
+function removeTag(i) { current.tags.splice(i,1); renderTags(); }
+
+// ── Chapters ─────────────────────────────────────────────────
+function renderChapters() {
+  const chs = current.chapters || [];
+  document.getElementById('chapterCountLabel').textContent = chs.length + ' チャプター';
+  document.getElementById('chapterList').innerHTML = chs.map((ch, i) =>
+    `<div class="chapter-item">
+      <div class="chapter-header" onclick="toggleChapter(${i})">
+        <span class="chapter-handle">⠿</span>
+        <span class="chapter-num">CH.${String(i+1).padStart(2,'0')}</span>
+        <span class="chapter-title-display" id="ch-title-disp-${i}">${ch.title||'(無題)'}</span>
+        <span class="chapter-toggle" id="ch-toggle-${i}">▼</span>
+      </div>
+      <div class="chapter-body" id="ch-body-${i}">
+        <div class="field" style="margin-bottom:10px;">
+          <div class="field-label">チャプタータイトル</div>
+          <input class="field-input" id="ch-title-${i}" value="${esc(ch.title||'')}" oninput="updateChapterTitle(${i})">
+        </div>
+        <div class="field">
+          <div class="field-label">本文（埋め込み構文使用可）</div>
+          <textarea class="field-input" id="ch-content-${i}" rows="12" style="font-family:var(--mono);font-size:11px;">${esc(ch.content||'')}</textarea>
+        </div>
+        <div class="chapter-actions">
+          <button class="btn btn-green" onclick="saveChapter(${i})">✓ 保存</button>
+          ${i>0?`<button class="btn" onclick="moveChapter(${i},-1)">↑ 上へ</button>`:''}
+          ${i<chs.length-1?`<button class="btn" onclick="moveChapter(${i},1)">↓ 下へ</button>`:''}
+          <button class="btn btn-red" style="margin-left:auto;" onclick="deleteChapter(${i})">✕ 削除</button>
+        </div>
+      </div>
+    </div>`
+  ).join('');
+}
+
+function toggleChapter(i) {
+  const body = document.getElementById('ch-body-'+i);
+  const tog  = document.getElementById('ch-toggle-'+i);
+  const open = body.classList.toggle('open');
+  tog.textContent = open ? '▲' : '▼';
+}
+function updateChapterTitle(i) {
+  const v = document.getElementById('ch-title-'+i).value;
+  document.getElementById('ch-title-disp-'+i).textContent = v || '(無題)';
+}
+function saveChapter(i) {
+  current.chapters[i].title   = document.getElementById('ch-title-'+i).value;
+  current.chapters[i].content = document.getElementById('ch-content-'+i).value;
+  toast('チャプター保存済み');
+}
+function addChapter() {
+  if (!current.chapters) current.chapters = [];
+  current.chapters.push({title:'新規チャプター',content:''});
+  renderChapters();
+  // Auto-open last
+  const i = current.chapters.length - 1;
+  setTimeout(()=>toggleChapter(i), 50);
+}
+function deleteChapter(i) {
+  if (!confirm('このチャプターを削除しますか？')) return;
+  current.chapters.splice(i,1);
+  renderChapters();
+}
+function moveChapter(i, dir) {
+  const chs = current.chapters;
+  const j = i + dir;
+  if (j < 0 || j >= chs.length) return;
+  [chs[i], chs[j]] = [chs[j], chs[i]];
+  renderChapters();
+}
+
+// ── Related ──────────────────────────────────────────────────
+function renderRelated() {
+  renderRelatedList('personnel', current.relatedPersonnel||[], 'relPersonnel');
+  renderRelatedList('entity',    current.relatedEntities||[],  'relEntities');
+  renderRelatedList('mission',   current.relatedMissions||[],  'relMissions');
+}
+function renderRelatedList(type, items, elId) {
+  document.getElementById(elId).innerHTML = items.map((id,i) =>
+    `<div class="related-item">
+      <span class="related-id">${id}</span>
+      <button class="related-remove" onclick="removeRelated('${type}',${i})">×</button>
+    </div>`
+  ).join('');
+}
+function addRelated(type) {
+  const inputMap = {personnel:'addPersonnelInput',entity:'addEntityInput',mission:'addMissionInput'};
+  const arrMap   = {personnel:'relatedPersonnel',entity:'relatedEntities',mission:'relatedMissions'};
+  const inp = document.getElementById(inputMap[type]);
+  const v = inp.value.trim();
+  if (!v) return;
+  if (!current[arrMap[type]]) current[arrMap[type]] = [];
+  current[arrMap[type]].push(v);
+  inp.value = '';
+  renderRelated();
+}
+function removeRelated(type, i) {
+  const arrMap = {personnel:'relatedPersonnel',entity:'relatedEntities',mission:'relatedMissions'};
+  current[arrMap[type]].splice(i,1);
+  renderRelated();
+}
+
+// ── Save / Delete ────────────────────────────────────────────
+function saveNovel() {
+  // Sync form fields to current
+  current.id           = document.getElementById('f-id').value.trim();
+  current.title        = document.getElementById('f-title').value.trim();
+  current.subtitle     = document.getElementById('f-subtitle').value.trim();
+  current.author       = document.getElementById('f-author').value.trim();
+  current.date         = document.getElementById('f-date').value;
+  current.summary      = document.getElementById('f-summary').value.trim();
+  current.securityLevel= parseInt(document.getElementById('f-sec').value);
+  current.category     = document.getElementById('f-category').value;
+
+  const idx = novels.findIndex(n=>n.id===current.id);
+  if (idx !== -1) novels[idx] = current;
+  else novels.push(current);
+
+  persistAll();
+  renderList();
+  updateExport();
+  toast('✓ 保存しました');
+}
+
+function deleteNovel() {
+  if (!current || !confirm('「'+current.title+'」を削除しますか？')) return;
+  novels = novels.filter(n=>n.id!==current.id);
+  current = null;
+  persistAll();
+  renderList();
+  document.getElementById('editorEmpty').style.display = 'flex';
+  document.getElementById('editorMain').style.display = 'none';
+  toast('削除しました','red');
+}
+
+function createNovel() {
+  const n = {
+    id:'novel-'+ String(Date.now()).slice(-5),
+    title:'新規記録',subtitle:'',author:'海蝕機関 記録部',
+    date: new Date().toISOString().slice(0,10),
+    category:'内部記録',tags:[],summary:'',securityLevel:1,
+    chapters:[{title:'第一章',content:''}],
+    relatedPersonnel:[],relatedEntities:[],relatedMissions:[]
+  };
+  novels.push(n);
+  selectNovel(novels.length-1);
+}
+
+// ── Export ────────────────────────────────────────────────────
+function updateExport() {
+  if (!current) return;
+  document.getElementById('exportJson').textContent = JSON.stringify(current, null, 2);
+}
+function copyExport() {
+  navigator.clipboard.writeText(JSON.stringify(current, null, 2));
+  toast('クリップボードにコピー');
+}
+function downloadExport() {
+  const a = document.createElement('a');
+  a.href = 'data:application/json,' + encodeURIComponent(JSON.stringify(current,null,2));
+  a.download = (current.id||'novel') + '.json';
+  a.click();
+}
+function exportAll() {
+  const a = document.createElement('a');
+  a.href = 'data:application/json,' + encodeURIComponent(JSON.stringify({novels},null,2));
+  a.download = 'novels-data.json';
+  a.click();
+  toast('全記録をエクスポート');
+}
+
+// ── ZIP Export ────────────────────────────────────────────────
+async function exportZip() {
+  if (typeof JSZip === 'undefined') { toast('JSZip 読み込み中。再試行してください。','red'); return; }
+  const zip = new JSZip();
+  const ts  = new Date().toISOString().slice(0,10);
+
+  // 全記録まとめ
+  zip.file('novels-data.json', JSON.stringify({novels}, null, 2));
+
+  // 各記録を個別ファイルに
+  const dir = zip.folder('novels');
+  novels.forEach(n => {
+    const fname = (n.id || 'novel') + '.json';
+    dir.file(fname, JSON.stringify(n, null, 2));
+  });
+
+  // チャプター内容をテキストファイルでも
+  const txtDir = zip.folder('chapters-text');
+  novels.forEach(n => {
+    (n.chapters || []).forEach(ch => {
+      const fname = `${n.id}-ch${String(ch.id).padStart(2,'0')}-${(ch.title||'chapter').replace(/[^\w\u3040-\u9FFF]/g,'_')}.txt`;
+      txtDir.file(fname, `# ${n.title} — ${ch.title}\n\n${ch.content||''}`);
+    });
+  });
+
+  zip.file('README.txt',
+    `海蝕機関 記録文庫エクスポート\n日時: ${new Date().toLocaleString('ja')}\n記録数: ${novels.length}\n\n` +
+    `novels-data.json  — 全記録データ（インポート用）\nnovels/           — 各記録個別JSON\nchapters-text/    — 各チャプターのテキスト\n\n` +
+    `インポート: admin/novel-editor.html の「ZIPインポート」ボタンから\n`
+  );
+
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `novels-${ts}.zip`;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+  toast(`📦 ZIP エクスポート完了 (${novels.length}件, ${(blob.size/1024).toFixed(1)}KB)`);
+}
+
+// ── ZIP Import ────────────────────────────────────────────────
+function importZip() { document.getElementById('importZipFile').click(); }
+async function handleImportZip(e) {
+  const file = e.target.files[0];
+  if (!file || typeof JSZip === 'undefined') return;
+  e.target.value = '';
+  try {
+    const zip = await JSZip.loadAsync(file);
+    let imported = 0;
+
+    // novels-data.json を優先
+    const mainFile = zip.file('novels-data.json');
+    if (mainFile) {
+      const raw  = await mainFile.async('text');
+      const data = JSON.parse(raw);
+      const arr  = data.novels || (Array.isArray(data) ? data : [data]);
+      const existing = new Set(novels.map(n=>n.id));
+      arr.forEach(n => {
+        if (!n.id || !n.title) return;
+        const idx = novels.findIndex(x=>x.id===n.id);
+        if (idx !== -1) { novels[idx] = n; }
+        else { novels.push(n); imported++; }
+      });
+      toast(`✓ ZIPから${arr.length}件インポート (新規${imported}件)`, 'green');
+    } else {
+      // novels/ フォルダから個別インポート
+      const files = [];
+      const dir = zip.folder('novels');
+      if (dir) dir.forEach((rel, f) => { if (!f.dir && rel.endsWith('.json')) files.push(f); });
+      for (const f of files) {
+        try {
+          const n = JSON.parse(await f.async('text'));
+          if (!n.id || !n.title) continue;
+          const idx = novels.findIndex(x=>x.id===n.id);
+          if (idx !== -1) novels[idx] = n;
+          else { novels.push(n); imported++; }
+        } catch(err) {}
+      }
+      toast(`✓ ZIPから${imported}件インポート`, 'green');
+    }
+    persistAll();
+    renderList();
+  } catch(err) {
+    toast('ZIPインポートエラー: ' + err.message, 'red');
+  }
+}
+
+// ── Persist (localStorage) ────────────────────────────────────
+function persistAll() {
+  localStorage.setItem('kaishoku_novels_admin', JSON.stringify(novels));
+}
+
+// ── Tabs ──────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-pane').forEach(p=>p.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+  if (name==='export') updateExport();
+}
+
+// ── Util ──────────────────────────────────────────────────────
+function esc(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+function toast(msg, type) {
+  const el = document.createElement('div');
+  el.className = 'toast-item';
+  if (type==='red') el.style.cssText='background:var(--red-dim);border-color:var(--red);color:var(--red);';
+  el.textContent = msg;
+  document.getElementById('toast').appendChild(el);
+  setTimeout(()=>el.remove(), 3000);
+}
+
+loadData();
+</script>
+</body>
+</html>

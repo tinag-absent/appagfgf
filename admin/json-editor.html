@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JSONデータエディタ — 海蝕機関</title>
+<link rel="icon" type="image/png" href="../images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#05070d;--panel:#0a0e16;--panel2:#0f1520;--border:#162030;--border2:#1e2d40;
+  --cyan:#00d4ff;--cyan-dim:#001c28;--green:#00e676;--green-dim:#001e10;
+  --yellow:#ffd740;--yellow-dim:#201800;--red:#ff5252;--red-dim:#200808;
+  --purple:#ce93d8;--orange:#ff9800;--blue:#4fc3f7;
+  --text:#cdd6e8;--text2:#6a7d94;--text3:#364858;
+  --mono:'Share Tech Mono',monospace;--sans:'Noto Sans JP',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;min-height:100vh;display:flex;flex-direction:column;}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:
+    repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,212,255,.008) 3px,rgba(0,212,255,.008) 4px),
+    radial-gradient(ellipse at 20% 20%, rgba(0,212,255,.04) 0%, transparent 60%),
+    radial-gradient(ellipse at 80% 80%, rgba(0,230,118,.03) 0%, transparent 60%);
+}
+
+/* Header */
+.hdr{
+  background:linear-gradient(90deg,#05070d,#080d18,#05070d);
+  border-bottom:1px solid var(--border2);
+  padding:0 32px;height:64px;display:flex;align-items:center;gap:16px;
+  position:sticky;top:0;z-index:100;flex-shrink:0;
+}
+.hdr-logo{
+  width:36px;height:36px;border:1px solid var(--blue);display:flex;align-items:center;
+  justify-content:center;font-family:var(--mono);font-size:14px;color:var(--blue);
+  position:relative;flex-shrink:0;
+}
+.hdr-logo::before{content:'';position:absolute;inset:2px;border:1px solid var(--blue);opacity:.3;}
+.hdr-org{display:flex;flex-direction:column;}
+.hdr-org-main{font-family:var(--mono);font-size:13px;color:var(--blue);letter-spacing:.25em;}
+.hdr-org-sub{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.15em;margin-top:2px;}
+.hdr-sep{flex:1;}
+.hdr-back{
+  font-family:var(--mono);font-size:10px;color:var(--text2);letter-spacing:.1em;
+  text-decoration:none;padding:6px 14px;border:1px solid var(--border2);
+  transition:all .2s;
+}
+.hdr-back:hover{color:var(--blue);border-color:var(--blue);}
+
+/* Layout */
+.layout{display:flex;flex:1;overflow:hidden;height:calc(100vh - 64px);}
+
+/* Sidebar */
+.sidebar{
+  width:240px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.sidebar-title{
+  font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.2em;
+  padding:14px 16px 10px;border-bottom:1px solid var(--border);text-transform:uppercase;
+}
+.file-list{flex:1;overflow-y:auto;padding:8px 0;}
+.file-item{
+  padding:10px 16px;cursor:pointer;display:flex;flex-direction:column;gap:3px;
+  border-left:2px solid transparent;transition:all .15s;
+}
+.file-item:hover{background:var(--panel2);border-left-color:var(--border2);}
+.file-item.active{background:var(--panel2);border-left-color:var(--blue);}
+.file-name{font-family:var(--mono);font-size:11px;color:var(--text);}
+.file-item.active .file-name{color:var(--blue);}
+.file-size{font-family:var(--mono);font-size:9px;color:var(--text3);}
+
+/* Upload zone */
+.upload-zone{
+  padding:12px 16px;border-top:1px solid var(--border);
+}
+.upload-btn{
+  width:100%;padding:8px;background:none;border:1px dashed var(--border2);
+  color:var(--text2);font-family:var(--mono);font-size:10px;cursor:pointer;
+  letter-spacing:.08em;transition:all .2s;
+}
+.upload-btn:hover{border-color:var(--blue);color:var(--blue);}
+#fileInput{display:none;}
+
+/* Editor area */
+.editor-area{flex:1;display:flex;flex-direction:column;overflow:hidden;}
+
+/* Toolbar */
+.toolbar{
+  padding:10px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;flex-shrink:0;background:var(--panel);
+}
+.toolbar-filename{
+  font-family:var(--mono);font-size:12px;color:var(--blue);letter-spacing:.1em;flex:1;
+}
+.toolbar-filename span{color:var(--text3);}
+.btn{
+  font-family:var(--mono);font-size:10px;padding:6px 14px;border:1px solid;
+  cursor:pointer;letter-spacing:.08em;background:none;transition:all .15s;
+}
+.btn-validate{color:var(--yellow);border-color:var(--yellow);}
+.btn-validate:hover{background:rgba(255,215,64,.1);}
+.btn-format{color:var(--cyan);border-color:var(--cyan);}
+.btn-format:hover{background:rgba(0,212,255,.1);}
+.btn-copy{color:var(--text2);border-color:var(--border2);}
+.btn-copy:hover{color:var(--text);border-color:var(--border2);background:var(--panel2);}
+.btn-download{color:var(--green);border-color:var(--green);}
+.btn-download:hover{background:rgba(0,230,118,.1);}
+
+/* Status bar */
+.status-bar{
+  padding:5px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:16px;flex-shrink:0;
+  background:var(--bg);min-height:26px;
+}
+.status-msg{font-family:var(--mono);font-size:10px;}
+.status-msg.ok{color:var(--green);}
+.status-msg.error{color:var(--red);}
+.status-msg.warn{color:var(--yellow);}
+.status-msg.info{color:var(--text2);}
+.status-pos{font-family:var(--mono);font-size:10px;color:var(--text3);margin-left:auto;}
+
+/* Editor */
+.editor-wrapper{flex:1;position:relative;overflow:hidden;}
+.line-numbers{
+  position:absolute;left:0;top:0;bottom:0;width:50px;
+  background:var(--panel);border-right:1px solid var(--border);
+  overflow:hidden;padding:16px 0;font-family:var(--mono);font-size:12px;
+  color:var(--text3);text-align:right;line-height:1.6;user-select:none;
+  z-index:1;pointer-events:none;
+}
+.line-num{padding-right:10px;}
+#jsonEditor{
+  position:absolute;inset:0;left:50px;
+  background:var(--bg);color:var(--text);
+  border:none;outline:none;resize:none;
+  font-family:var(--mono);font-size:12px;line-height:1.6;
+  padding:16px 20px;width:calc(100% - 50px);height:100%;
+  caret-color:var(--cyan);tab-size:2;
+}
+
+/* Empty state */
+.empty-state{
+  flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:12px;color:var(--text3);
+}
+.empty-icon{font-size:40px;opacity:.4;}
+.empty-text{font-family:var(--mono);font-size:11px;letter-spacing:.1em;}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:4px;height:4px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px;}
+::-webkit-scrollbar-thumb:hover{background:var(--text3);}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="hdr">
+  <div class="hdr-logo">📁</div>
+  <div class="hdr-org">
+    <div class="hdr-org-main">JSON DATA EDITOR</div>
+    <div class="hdr-org-sub">KAISHOKU AGENCY // ADMIN</div>
+  </div>
+  <div class="hdr-sep"></div>
+  <a class="hdr-back" href="./admin-hub.html">← ADMIN HUB</a>
+</div>
+
+<!-- Layout -->
+<div class="layout">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-title">DATA FILES</div>
+    <div class="file-list" id="fileList">
+      <!-- Files loaded by JS -->
+    </div>
+    <div class="upload-zone">
+      <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+        ＋ JSONファイルを開く
+      </button>
+      <input type="file" id="fileInput" accept=".json" multiple>
+    </div>
+  </div>
+
+  <!-- Editor area -->
+  <div class="editor-area" id="editorArea">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">📂</div>
+      <div class="empty-text">左側のファイルを選択するか、JSONファイルをアップロードしてください</div>
+    </div>
+    <div id="editorPanel" style="display:none;flex:1;flex-direction:column;overflow:hidden;">
+      <div class="toolbar">
+        <div class="toolbar-filename" id="toolbarFilename"><span>FILE // </span>—</div>
+        <button class="btn btn-validate" onclick="validateJSON()">✓ VALIDATE</button>
+        <button class="btn btn-format" onclick="formatJSON()">⊞ FORMAT</button>
+        <button class="btn btn-copy" onclick="copyJSON()">⎘ COPY</button>
+        <button class="btn btn-download" onclick="downloadJSON()">↓ DOWNLOAD</button>
+      </div>
+      <div class="status-bar">
+        <div class="status-msg info" id="statusMsg">ファイルを選択してください</div>
+        <div class="status-pos" id="statusPos">Ln 1, Col 1</div>
+      </div>
+      <div class="editor-wrapper">
+        <div class="line-numbers" id="lineNumbers"></div>
+        <textarea id="jsonEditor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off"></textarea>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// Built-in data files (relative paths from this page)
+const DATA_FILES = [
+  { name: 'entities-data.json',      path: '../data/entities-data.json',       label: '実体データ' },
+  { name: 'mission-data.json',       path: '../data/mission-data.json',         label: 'ミッションデータ' },
+  { name: 'personnel-data.json',     path: '../data/personnel-data.json',       label: '職員データ' },
+  { name: 'modules-data.json',       path: '../data/modules-data.json',         label: 'モジュールデータ' },
+  { name: 'locations-data.json',     path: '../data/locations-data.json',       label: 'ロケーションデータ' },
+  { name: 'novels-data.json',        path: '../data/novels-data.json',          label: '小説データ' },
+  { name: 'area-incidents-data.json',path: '../data/area-incidents-data.json',  label: 'エリアインシデント' },
+  { name: 'municipalities-data.json',path: '../data/municipalities-data.json',  label: '自治体データ' },
+  { name: 'map-incidents.json',      path: '../data/map-incidents.json',        label: 'マップインシデント' },
+  { name: 'progress-config.json',    path: '../data/progress-config.json',      label: '進行設定' },
+  { name: 'divisions-data.json',     path: '../data/divisions-data.json',       label: '部門データ' },
+  { name: 'level-messages-data.json',path: '../data/level-messages-data.json',  label: 'レベルメッセージ' },
+];
+
+let currentFilename = null;
+let uploadedFiles = {}; // name -> content string
+
+// Build file list
+function buildFileList() {
+  const list = document.getElementById('fileList');
+  list.innerHTML = '';
+
+  // Section: built-in
+  const hdr1 = document.createElement('div');
+  hdr1.style.cssText='padding:8px 16px 4px;font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.12em;';
+  hdr1.textContent = '─ DATA ─';
+  list.appendChild(hdr1);
+
+  DATA_FILES.forEach(f => {
+    const item = createFileItem(f.name, f.label, () => loadBuiltinFile(f));
+    list.appendChild(item);
+  });
+
+  if (Object.keys(uploadedFiles).length > 0) {
+    const hdr2 = document.createElement('div');
+    hdr2.style.cssText='padding:12px 16px 4px;font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.12em;';
+    hdr2.textContent = '─ UPLOADED ─';
+    list.appendChild(hdr2);
+
+    Object.keys(uploadedFiles).forEach(name => {
+      const item = createFileItem(name, 'アップロード済み', () => loadUploadedFile(name));
+      list.appendChild(item);
+    });
+  }
+}
+
+function createFileItem(name, label, onClick) {
+  const item = document.createElement('div');
+  item.className = 'file-item' + (currentFilename === name ? ' active' : '');
+  item.id = 'fi-' + name;
+  item.innerHTML = `<div class="file-name">${name}</div><div class="file-size">${label}</div>`;
+  item.onclick = onClick;
+  return item;
+}
+
+function setActiveFile(name) {
+  document.querySelectorAll('.file-item').forEach(el => el.classList.remove('active'));
+  const el = document.getElementById('fi-' + name);
+  if (el) el.classList.add('active');
+  currentFilename = name;
+  document.getElementById('toolbarFilename').innerHTML = `<span>FILE // </span>${name}`;
+}
+
+async function loadBuiltinFile(f) {
+  try {
+    const res = await fetch(f.path);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const text = await res.text();
+    openInEditor(f.name, text);
+  } catch(e) {
+    setStatus('error', 'ロード失敗: ' + e.message);
+  }
+}
+
+function loadUploadedFile(name) {
+  openInEditor(name, uploadedFiles[name]);
+}
+
+function openInEditor(name, content) {
+  setActiveFile(name);
+  document.getElementById('emptyState').style.display = 'none';
+  const panel = document.getElementById('editorPanel');
+  panel.style.display = 'flex';
+
+  const editor = document.getElementById('jsonEditor');
+  // Try to format on open
+  try {
+    const parsed = JSON.parse(content);
+    editor.value = JSON.stringify(parsed, null, 2);
+    setStatus('ok', 'OK — JSONパース成功');
+  } catch(e) {
+    editor.value = content;
+    setStatus('warn', '警告: 無効なJSON — ' + e.message);
+  }
+  updateLineNumbers();
+  updateCursorPos();
+}
+
+function setStatus(type, msg) {
+  const el = document.getElementById('statusMsg');
+  el.className = 'status-msg ' + type;
+  el.textContent = msg;
+}
+
+// Line numbers
+function updateLineNumbers() {
+  const editor = document.getElementById('jsonEditor');
+  const lines = editor.value.split('\n');
+  const ln = document.getElementById('lineNumbers');
+  ln.innerHTML = lines.map((_,i) => `<div class="line-num">${i+1}</div>`).join('');
+  // Sync scroll
+  ln.scrollTop = editor.scrollTop;
+}
+
+function updateCursorPos() {
+  const editor = document.getElementById('jsonEditor');
+  const text = editor.value.substring(0, editor.selectionStart);
+  const lines = text.split('\n');
+  const ln = lines.length;
+  const col = lines[lines.length-1].length + 1;
+  document.getElementById('statusPos').textContent = `Ln ${ln}, Col ${col}`;
+}
+
+const editor = document.getElementById('jsonEditor');
+editor.addEventListener('input', () => { updateLineNumbers(); validateQuiet(); });
+editor.addEventListener('keyup', updateCursorPos);
+editor.addEventListener('click', updateCursorPos);
+editor.addEventListener('scroll', () => {
+  document.getElementById('lineNumbers').scrollTop = editor.scrollTop;
+});
+editor.addEventListener('keydown', (e) => {
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const s = editor.selectionStart;
+    const end = editor.selectionEnd;
+    editor.value = editor.value.substring(0, s) + '  ' + editor.value.substring(end);
+    editor.selectionStart = editor.selectionEnd = s + 2;
+    updateLineNumbers();
+  }
+});
+
+function validateJSON() {
+  try {
+    JSON.parse(editor.value);
+    setStatus('ok', '✓ JSON有効');
+  } catch(e) {
+    setStatus('error', '✗ JSONエラー: ' + e.message);
+  }
+}
+
+function validateQuiet() {
+  try {
+    JSON.parse(editor.value);
+    setStatus('ok', '✓ JSON有効');
+  } catch(e) {
+    setStatus('error', '✗ ' + e.message);
+  }
+}
+
+function formatJSON() {
+  try {
+    const parsed = JSON.parse(editor.value);
+    editor.value = JSON.stringify(parsed, null, 2);
+    updateLineNumbers();
+    setStatus('ok', '✓ フォーマット完了');
+  } catch(e) {
+    setStatus('error', 'フォーマット失敗: ' + e.message);
+  }
+}
+
+function copyJSON() {
+  navigator.clipboard.writeText(editor.value).then(() => {
+    setStatus('info', 'クリップボードにコピーしました');
+    setTimeout(() => validateQuiet(), 1500);
+  });
+}
+
+function downloadJSON() {
+  const name = currentFilename || 'data.json';
+  const blob = new Blob([editor.value], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name; a.click();
+  URL.revokeObjectURL(url);
+  setStatus('ok', `↓ ダウンロード: ${name}`);
+}
+
+// File upload
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  Array.from(e.target.files).forEach(file => {
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      uploadedFiles[file.name] = ev.target.result;
+      buildFileList();
+      openInEditor(file.name, ev.target.result);
+    };
+    reader.readAsText(file);
+  });
+  e.target.value = '';
+});
+
+// Init
+buildFileList();
+</script>
+</body>
+</html>

@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <title>海蝕機関 - ステータス・ダッシュボード</title>
+  <link rel="icon" type="image/png" href="./images/favicon.png">
+  <link rel="stylesheet" href="./css/style.css">
+  <link rel="stylesheet" href="./css/sidebar.css">
+  <link rel="stylesheet" href="./css/mobile.css">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <!-- Sidebar content will be loaded by sidebar.js -->
+    </aside>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle">
+      <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+
+    <!-- Mobile Menu Overlay -->
+    <div class="mobile-menu-overlay"></div>
+
+    <!-- Main Content -->
+    <main class="main-content scanline">
+      <!-- SPA content will be rendered here by router.js -->
+    </main>
+  </div>
+  <!-- Core data -->
+  <script src="./js/core/error-handler.js" defer></script>
+  <script src="./js/data/data-bundle.js" defer></script>
+
+  <!-- Common modules (loaded once) -->
+  <script src="./js/core/loading.js" defer></script>
+  <script src="./js/core/progress.js" defer></script>
+  <script src="./js/core/level-messages.js" defer></script>
+  <script src="./js/core/main.js" defer></script>
+  <script src="./js/core/modal.js" defer></script>
+  <script src="./js/core/daily-login.js" defer></script>
+  <script src="./js/core/view-history.js" defer></script>
+  <script src="./js/core/story-engine.js" defer></script>
+  <script src="./js/core/notifications.js" defer></script>
+  
+  <script src="./js/core/bookmark.js" defer></script>
+  <script src="./js/data/mission-data.js" defer></script>
+  <script src="./js/data/catalog-data.js" defer></script>
+  <script src="./js/data/personnel-database.js" defer></script>
+  <script src="./js/data/map-data.js" defer></script>
+  <script src="./js/core/sidebar.js" defer></script>
+
+  <!-- SPA pages data and router -->
+  <script src="./js/core/pages.js" defer></script>
+  <script src="./js/core/router.js" defer></script>
+</body>
+</html>

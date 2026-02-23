@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>コンソール管理 — SEA ADMIN</title>
+<link rel="icon" type="image/png" href="../images/favicon.png">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#05070d;--panel:#0a0e16;--panel2:#0f1520;--panel3:#141c28;
+  --border:#162030;--border2:#1e2d40;
+  --green:#00e676;--green-dim:#001e10;--green2:#00c853;
+  --cyan:#00d4ff;--yellow:#ffd740;--red:#ff5252;--red-dim:#200808;
+  --purple:#ce93d8;--orange:#ff9800;--blue:#4fc3f7;
+  --text:#cdd6e8;--text2:#6a7d94;--text3:#364858;
+  --mono:'Share Tech Mono',monospace;--sans:'Noto Sans JP',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:13px;min-height:100vh;display:flex;flex-direction:column;}
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:
+    repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,230,118,.007) 3px,rgba(0,230,118,.007) 4px),
+    radial-gradient(ellipse at 10% 50%, rgba(0,230,118,.04) 0%,transparent 60%);
+}
+
+/* ─── Header ─── */
+.hdr{
+  background:var(--panel);border-bottom:1px solid var(--border2);
+  padding:0 24px;height:50px;display:flex;align-items:center;gap:14px;
+  position:sticky;top:0;z-index:100;flex-shrink:0;
+}
+.hdr-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(.85)}}
+.hdr-title{font-family:var(--mono);font-size:12px;color:var(--green);letter-spacing:.2em;}
+.hdr-sub{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.12em;}
+.hdr-sep{flex:1;}
+.hdr-save-status{font-family:var(--mono);font-size:10px;color:var(--text3);transition:color .3s;}
+.hdr-save-status.saved{color:var(--green);}
+.btn{
+  background:none;border:1px solid var(--border2);color:var(--text2);
+  font-family:var(--mono);font-size:10px;padding:6px 14px;cursor:pointer;
+  letter-spacing:.08em;transition:all .15s;
+}
+.btn:hover{border-color:var(--green);color:var(--green);}
+.btn-green{background:var(--green-dim);border-color:var(--green);color:var(--green);}
+.btn-green:hover{background:rgba(0,230,118,.15);}
+.btn-red{background:var(--red-dim);border-color:var(--red);color:var(--red);}
+.btn-red:hover{background:rgba(255,82,82,.15);}
+
+/* ─── Stats strip ─── */
+.stats{
+  display:flex;gap:1px;background:var(--border);border-bottom:1px solid var(--border2);
+  flex-shrink:0;
+}
+.stat{
+  flex:1;background:var(--panel);padding:12px 20px;display:flex;flex-direction:column;gap:3px;
+}
+.stat-val{font-family:var(--mono);font-size:22px;line-height:1;color:var(--text);}
+.stat-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;}
+.stat-sub{font-family:var(--mono);font-size:10px;color:var(--text3);margin-top:1px;}
+.c-green{color:var(--green);}
+.c-yellow{color:var(--yellow);}
+.c-cyan{color:var(--cyan);}
+.c-red{color:var(--red);}
+.c-text2{color:var(--text2);}
+
+/* ─── Main layout ─── */
+.main{display:flex;flex:1;overflow:hidden;height:calc(100vh - 98px);} /* 50 hdr + 48 stats */
+
+/* ─── Tabs (left sidebar) ─── */
+.tabs{
+  width:200px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;padding:8px 0;
+}
+.tab{
+  padding:11px 16px;cursor:pointer;font-family:var(--mono);font-size:10px;
+  color:var(--text2);border-left:2px solid transparent;
+  letter-spacing:.08em;transition:all .12s;display:flex;align-items:center;gap:10px;
+}
+.tab:hover{color:var(--text);background:var(--panel2);}
+.tab.active{color:var(--green);border-left-color:var(--green);background:var(--panel2);}
+.tab-icon{font-size:14px;line-height:1;}
+.tab-count{margin-left:auto;font-family:var(--mono);font-size:9px;
+  background:var(--border2);padding:1px 6px;color:var(--text3);}
+.tab.active .tab-count{background:rgba(0,230,118,.12);color:var(--green);}
+
+.tab-divider{height:1px;background:var(--border);margin:6px 0;}
+
+/* ─── Content area ─── */
+.content{flex:1;overflow:hidden;display:flex;flex-direction:column;}
+.pane{display:none;flex:1;flex-direction:column;overflow:hidden;}
+.pane.active{display:flex;}
+
+/* ─── Pane header ─── */
+.pane-hdr{
+  padding:12px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;flex-shrink:0;background:var(--panel);
+}
+.pane-title{font-family:var(--mono);font-size:11px;color:var(--green);letter-spacing:.15em;flex:1;}
+.pane-desc{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.06em;}
+
+/* ─── Scrollable body ─── */
+.pane-body{flex:1;overflow-y:auto;padding:20px;}
+::-webkit-scrollbar{width:4px;}
+::-webkit-scrollbar-track{background:var(--bg);}
+::-webkit-scrollbar-thumb{background:var(--border2);}
+::-webkit-scrollbar-thumb:hover{background:var(--text3);}
+
+/* ─── Command table ─── */
+.cmd-table{width:100%;border-collapse:collapse;}
+.cmd-table th{
+  font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.12em;
+  text-transform:uppercase;padding:8px 12px;text-align:left;
+  border-bottom:1px solid var(--border2);background:var(--panel);
+  position:sticky;top:0;z-index:2;
+}
+.cmd-table td{
+  padding:10px 12px;border-bottom:1px solid var(--border);
+  vertical-align:middle;
+}
+.cmd-table tr:hover td{background:var(--panel2);}
+.cmd-name{
+  font-family:var(--mono);font-size:12px;color:var(--cyan);
+  display:flex;align-items:center;gap:8px;
+}
+.cmd-syntax{font-family:var(--mono);font-size:10px;color:var(--text3);}
+.cmd-desc{font-size:12px;color:var(--text2);line-height:1.4;}
+.cmd-category{
+  font-family:var(--mono);font-size:9px;padding:2px 7px;
+  border:1px solid currentColor;
+}
+.cat-system{color:var(--green);}
+.cat-user{color:var(--cyan);}
+.cat-admin{color:var(--yellow);}
+.cat-util{color:var(--text2);}
+
+/* Toggle */
+.toggle-wrap{display:flex;align-items:center;gap:6px;}
+.toggle{
+  width:34px;height:18px;border-radius:9px;background:var(--border2);
+  border:none;cursor:pointer;position:relative;transition:background .2s;flex-shrink:0;
+}
+.toggle.on{background:var(--green);}
+.toggle::after{
+  content:'';position:absolute;top:2px;left:2px;
+  width:14px;height:14px;border-radius:50%;background:white;transition:left .2s;
+}
+.toggle.on::after{left:18px;}
+.toggle-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);}
+.toggle.on + .toggle-lbl{color:var(--green);}
+
+/* ─── Keyword editor ─── */
+.kw-toolbar{
+  padding:12px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;flex-shrink:0;
+}
+.kw-search{
+  flex:1;background:var(--panel2);border:1px solid var(--border2);
+  color:var(--text);font-family:var(--mono);font-size:11px;
+  padding:6px 12px;outline:none;
+}
+.kw-search:focus{border-color:var(--green);}
+.kw-search::placeholder{color:var(--text3);}
+
+.kw-list{flex:1;overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:8px;}
+
+.kw-card{
+  background:var(--panel);border:1px solid var(--border);padding:14px 16px;
+  display:grid;grid-template-columns:1fr auto;gap:10px;
+  transition:border-color .15s;
+}
+.kw-card:hover{border-color:var(--border2);}
+.kw-card.disabled{opacity:.5;}
+.kw-card-left{display:flex;flex-direction:column;gap:8px;}
+.kw-card-meta{display:flex;align-items:center;gap:10px;}
+.kw-trigger{
+  font-family:var(--mono);font-size:13px;color:var(--cyan);
+  background:rgba(0,212,255,.08);padding:2px 8px;border:1px solid rgba(0,212,255,.2);
+}
+.kw-type-badge{
+  font-family:var(--mono);font-size:9px;padding:2px 6px;border:1px solid currentColor;
+}
+.kw-response{font-size:12px;color:var(--text2);line-height:1.5;}
+.kw-response.t-success{color:var(--green);}
+.kw-response.t-error{color:var(--red);}
+.kw-response.t-warning{color:var(--yellow);}
+.kw-response.t-info{color:var(--cyan);}
+.kw-card-right{display:flex;flex-direction:column;gap:6px;align-items:flex-end;}
+.kw-actions{display:flex;gap:5px;margin-top:4px;}
+.kw-btn{
+  background:none;border:1px solid var(--border2);color:var(--text3);
+  font-family:var(--mono);font-size:9px;padding:3px 9px;cursor:pointer;
+  transition:all .1s;
+}
+.kw-btn-edit:hover{border-color:var(--cyan);color:var(--cyan);}
+.kw-btn-del:hover{border-color:var(--red);color:var(--red);}
+
+.kw-empty{
+  text-align:center;padding:60px 20px;
+  font-family:var(--mono);font-size:11px;color:var(--text3);
+  letter-spacing:.1em;
+}
+.kw-empty-icon{font-size:36px;opacity:.3;display:block;margin-bottom:12px;}
+
+/* ─── Modal ─── */
+.modal-bg{
+  display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);
+  z-index:1000;align-items:center;justify-content:center;
+}
+.modal-bg.open{display:flex;}
+.modal{
+  background:var(--panel);border:1px solid var(--border2);width:540px;max-width:90vw;
+  max-height:90vh;overflow-y:auto;
+}
+.modal-hdr{
+  padding:16px 20px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:10px;
+}
+.modal-title{font-family:var(--mono);font-size:11px;color:var(--green);letter-spacing:.15em;flex:1;}
+.modal-close{
+  background:none;border:none;color:var(--text3);font-size:18px;
+  cursor:pointer;padding:0 4px;line-height:1;transition:color .1s;
+}
+.modal-close:hover{color:var(--red);}
+.modal-body{padding:20px;}
+.form-row{margin-bottom:16px;}
+.form-label{
+  font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.12em;
+  text-transform:uppercase;display:block;margin-bottom:6px;
+}
+.form-input,.form-select,.form-textarea{
+  width:100%;background:var(--panel2);border:1px solid var(--border2);
+  color:var(--text);font-family:var(--mono);font-size:12px;
+  padding:8px 12px;outline:none;transition:border-color .15s;
+}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--green);}
+.form-textarea{resize:vertical;min-height:80px;line-height:1.6;}
+.form-select option{background:var(--panel2);}
+.form-hint{font-family:var(--mono);font-size:9px;color:var(--text3);margin-top:5px;}
+.form-row-2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.modal-footer{
+  padding:14px 20px;border-top:1px solid var(--border);
+  display:flex;justify-content:flex-end;gap:8px;
+}
+
+/* ─── Test console ─── */
+.console-wrap{
+  flex:1;display:flex;flex-direction:column;background:#000;
+  font-family:'Courier New',monospace;overflow:hidden;
+}
+.console-out{
+  flex:1;overflow-y:auto;padding:14px 16px;line-height:1.6;font-size:12px;
+}
+.console-out::-webkit-scrollbar{width:4px;}
+.console-out::-webkit-scrollbar-thumb{background:#1a3a1a;}
+.cline{margin-bottom:2px;white-space:pre-wrap;word-wrap:break-word;}
+.cline.s{color:#0f0;}
+.cline.e{color:#f55;text-shadow:0 0 4px #f00;}
+.cline.w{color:#ff0;}
+.cline.i{color:#0ff;}
+.cline.sys{color:#0a0;}
+.cline.input{color:#4a4;}
+.console-in{
+  border-top:1px solid #1a3a1a;padding:8px 16px;
+  display:flex;align-items:center;gap:8px;flex-shrink:0;
+}
+.c-prompt{color:#0f0;font-size:12px;font-family:'Courier New',monospace;white-space:nowrap;}
+.c-input{
+  flex:1;background:transparent;border:none;color:#0f0;
+  font-family:'Courier New',monospace;font-size:12px;outline:none;caret-color:#0f0;
+}
+.console-toolbar{
+  padding:8px 16px;background:var(--panel);border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;flex-shrink:0;
+}
+.console-toolbar-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.1em;flex:1;}
+.c-btn{
+  background:none;border:1px solid var(--border2);color:var(--text3);
+  font-family:var(--mono);font-size:9px;padding:4px 10px;cursor:pointer;transition:all .1s;
+}
+.c-btn:hover{border-color:var(--green);color:var(--green);}
+
+/* ─── Command detail drawer ─── */
+.cmd-drawer{
+  position:absolute;right:0;top:0;bottom:0;width:360px;
+  background:var(--panel2);border-left:1px solid var(--border2);
+  transform:translateX(100%);transition:transform .2s;
+  display:flex;flex-direction:column;z-index:10;
+}
+.cmd-drawer.open{transform:translateX(0);}
+.drawer-hdr{
+  padding:14px 16px;border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;
+}
+.drawer-title{font-family:var(--mono);font-size:11px;color:var(--cyan);letter-spacing:.1em;flex:1;}
+.drawer-close{background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;}
+.drawer-close:hover{color:var(--red);}
+.drawer-body{flex:1;overflow-y:auto;padding:16px;}
+.info-row{margin-bottom:12px;}
+.info-lbl{font-family:var(--mono);font-size:9px;color:var(--text3);letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px;}
+.info-val{font-family:var(--mono);font-size:11px;color:var(--text);}
+.info-val.mono{font-family:var(--mono);}
+.code-block{
+  background:#000;border:1px solid var(--border);padding:10px 12px;
+  font-family:'Courier New',monospace;font-size:11px;color:#0f0;
+  line-height:1.6;white-space:pre-wrap;
+}
+.section-divider{
+  height:1px;background:var(--border);margin:16px 0;
+}
+.drawer-footer{padding:12px 16px;border-top:1px solid var(--border);}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="hdr">
+  <div class="hdr-dot"></div>
+  <div>
+    <div class="hdr-title">CONSOLE ADMIN</div>
+    <div class="hdr-sub">SEA EROSION AGENCY // SYSTEM MANAGEMENT</div>
+  </div>
+  <div class="hdr-sep"></div>
+  <span class="hdr-save-status" id="saveStatus">—</span>
+  <a class="btn" href="./admin-hub.html" style="text-decoration:none;">← ADMIN HUB</a>
+</div>
+
+<!-- Stats -->
+<div class="stats">
+  <div class="stat">
+    <div class="stat-val c-cyan" id="statCmds">15</div>
+    <div class="stat-lbl">COMMANDS</div>
+    <div class="stat-sub" id="statCmdsActive">— active</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val c-green" id="statKws">0</div>
+    <div class="stat-lbl">KEYWORDS</div>
+    <div class="stat-sub" id="statKwsActive">— active</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val c-yellow" id="statTypes">4</div>
+    <div class="stat-lbl">RESPONSE TYPES</div>
+    <div class="stat-sub">success / error / warning / info</div>
+  </div>
+  <div class="stat">
+    <div class="stat-val c-text2" id="statLast">—</div>
+    <div class="stat-lbl">LAST MODIFIED</div>
+    <div class="stat-sub" id="statLastFull">変更なし</div>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" data-tab="commands" onclick="switchTab('commands')">
+      <span class="tab-icon">⌨</span>
+      コマンド一覧
+      <span class="tab-count" id="tcCommands">15</span>
+    </div>
+    <div class="tab" data-tab="keywords" onclick="switchTab('keywords')">
+      <span class="tab-icon">⚑</span>
+      キーワード設定
+      <span class="tab-count" id="tcKeywords">0</span>
+    </div>
+    <div class="tab-divider"></div>
+    <div class="tab" data-tab="test" onclick="switchTab('test')">
+      <span class="tab-icon">▶</span>
+      テストコンソール
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- ── PANE: コマンド一覧 ── -->
+    <div class="pane active" id="pane-commands">
+      <div class="pane-hdr">
+        <div>
+          <div class="pane-title">COMMAND LIST</div>
+          <div class="pane-desc">組み込みコマンドの一覧・有効/無効切り替え・詳細確認</div>
+        </div>
+        <button class="btn" onclick="enableAllCmds()">全て有効化</button>
+      </div>
+      <div class="pane-body" style="padding:0;">
+        <table class="cmd-table" id="cmdTable">
+          <thead>
+            <tr>
+              <th style="width:130px;">コマンド</th>
+              <th style="width:170px;">構文</th>
+              <th>説明</th>
+              <th style="width:80px;">カテゴリ</th>
+              <th style="width:80px;">状態</th>
+            </tr>
+          </thead>
+          <tbody id="cmdTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ── PANE: キーワード設定 ── -->
+    <div class="pane" id="pane-keywords">
+      <div class="kw-toolbar">
+        <input class="kw-search" id="kwSearch" type="text" placeholder="キーワードで絞り込み..." oninput="filterKeywords()">
+        <button class="btn btn-green" onclick="openKwModal()">＋ 新規追加</button>
+      </div>
+      <div class="kw-list" id="kwList"></div>
+    </div>
+
+    <!-- ── PANE: テストコンソール ── -->
+    <div class="pane" id="pane-test">
+      <div class="console-toolbar">
+        <span class="console-toolbar-lbl">LIVE TEST CONSOLE — コマンド・キーワードをリアルタイムでテスト</span>
+        <button class="c-btn" onclick="clearTestConsole()">CLEAR</button>
+        <button class="c-btn" onclick="printTestHelp()">HELP</button>
+      </div>
+      <div class="console-wrap">
+        <div class="console-out" id="testOutput"></div>
+        <div class="console-in">
+          <span class="c-prompt">sea@console:~#</span>
+          <input class="c-input" id="testInput" autocomplete="off" spellcheck="false"
+            placeholder="コマンドまたはキーワードを入力..." autofocus>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- Keyword Modal -->
+<div class="modal-bg" id="kwModal">
+  <div class="modal">
+    <div class="modal-hdr">
+      <div class="modal-title" id="modalTitle">NEW KEYWORD</div>
+      <button class="modal-close" onclick="closeKwModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="kwEditId">
+      <div class="form-row">
+        <label class="form-label">トリガーキーワード *</label>
+        <input class="form-input" id="kwTrigger" type="text" placeholder="例: decode, unlock, secret">
+        <div class="form-hint">ユーザーがコンソールに入力するキーワード（スペース不可推奨）</div>
+      </div>
+      <div class="form-row-2">
+        <div class="form-row" style="margin:0;">
+          <label class="form-label">レスポンスタイプ</label>
+          <select class="form-select" id="kwType">
+            <option value="success">success — 緑</option>
+            <option value="info">info — シアン</option>
+            <option value="warning">warning — 黄</option>
+            <option value="error">error — 赤</option>
+            <option value="system">system — 暗緑</option>
+          </select>
+        </div>
+        <div class="form-row" style="margin:0;">
+          <label class="form-label">クリアランス制限</label>
+          <select class="form-select" id="kwClearance">
+            <option value="0">制限なし（全員）</option>
+            <option value="1">Level 1以上</option>
+            <option value="2">Level 2以上</option>
+            <option value="3">Level 3以上</option>
+            <option value="4">Level 4以上</option>
+            <option value="5">Level 5のみ</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">レスポンステキスト *</label>
+        <textarea class="form-textarea" id="kwResponse" placeholder="コンソールに表示されるレスポンスを入力...&#10;複数行対応。\nで改行。"></textarea>
+        <div class="form-hint">特殊変数: {user} = ユーザー名 / {level} = 現在レベル / {time} = 現在時刻</div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">メモ（管理者用）</label>
+        <input class="form-input" id="kwNote" type="text" placeholder="任意メモ（ARGイベント番号など）">
+      </div>
+      <div class="form-row" style="display:flex;align-items:center;gap:12px;">
+        <button class="toggle" id="kwEnabled" onclick="this.classList.toggle('on')" style=""></button>
+        <label class="form-label" style="margin:0;">有効</label>
+        <button class="toggle on" id="kwOnce" onclick="this.classList.toggle('on')" style="margin-left:20px;"></button>
+        <label class="form-label" style="margin:0;">一度だけ発火</label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn" onclick="closeKwModal()">キャンセル</button>
+      <button class="btn btn-green" onclick="saveKeyword()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════
+
+const STORAGE_KEY = 'sea_console_keywords';
+const CMD_STATE_KEY = 'sea_console_cmd_states';
+
+// Built-in commands definition
+const BUILTIN_COMMANDS = [
+  { name:'help',      syntax:'help',             desc:'利用可能なコマンド一覧を表示する',           category:'util',   response:'Available Commands:\n  help, clear, exit, whoami, status, level, clearance, grant, logout, users, reset, admin, date, history, echo' },
+  { name:'clear',     syntax:'clear',            desc:'コンソール画面をクリアする',                 category:'util',   response:'[画面クリア]' },
+  { name:'exit',      syntax:'exit',             desc:'ダッシュボードに戻る',                        category:'system', response:'Exiting console...' },
+  { name:'whoami',    syntax:'whoami',           desc:'現在のユーザー情報を表示する',               category:'user',   response:'{name} [{id}]' },
+  { name:'status',    syntax:'status',           desc:'ユーザーの詳細ステータスを表示する',         category:'user',   response:'═══ USER STATUS ═══\nName: ...\nLevel: ...\nClearance: ...\nXP: ...' },
+  { name:'level',     syntax:'level <1-10>',     desc:'ユーザーのレベルを設定する（1〜10）',       category:'admin',  response:'Level changed: X → Y' },
+  { name:'clearance', syntax:'clearance <1-5>',  desc:'クリアランスレベルを設定する（1〜5）',      category:'admin',  response:'Clearance changed: X → Y' },
+  { name:'grant',     syntax:'grant <xp>',       desc:'指定したXPを現ユーザーに付与する',          category:'admin',  response:'Granted N XP to {name}' },
+  { name:'logout',    syntax:'logout',           desc:'現ユーザーをログアウトする',                  category:'system', response:'Logging out...\nSession terminated.' },
+  { name:'users',     syntax:'users',            desc:'登録済みユーザー一覧を表示する',             category:'admin',  response:'═══ REGISTERED USERS ═══\n[1] ...\n[2] ...' },
+  { name:'reset',     syntax:'reset',            desc:'ユーザーの進行データをリセットする',         category:'admin',  response:'Progress has been reset.\nUser level reset to 1.' },
+  { name:'admin',     syntax:'admin',            desc:'管理者権限をトグルする',                      category:'admin',  response:'Admin privileges ENABLED / DISABLED' },
+  { name:'date',      syntax:'date',             desc:'現在の日時を表示する',                        category:'util',   response:'Mon Feb 23 2026 ...' },
+  { name:'history',   syntax:'history',          desc:'コマンド履歴を表示する',                      category:'util',   response:'Command History:\n  1  help\n  2  status' },
+  { name:'echo',      syntax:'echo <text>',      desc:'テキストをコンソールに出力する',             category:'util',   response:'<指定テキスト>' },
+];
+
+const CATEGORY_LABELS = {
+  system: 'SYSTEM', user: 'USER', admin: 'ADMIN', util: 'UTIL'
+};
+
+let keywords = [];
+let cmdStates = {}; // name -> enabled (bool)
+let testHistory = [];
+let testHistIdx = -1;
+
+// ═══════════════════════════════════════════
+// STORAGE
+// ═══════════════════════════════════════════
+function load() {
+  try { keywords = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e){ keywords = []; }
+  try { cmdStates = JSON.parse(localStorage.getItem(CMD_STATE_KEY) || '{}'); } catch(e){ cmdStates = {}; }
+  BUILTIN_COMMANDS.forEach(c => { if(cmdStates[c.name] === undefined) cmdStates[c.name] = true; });
+}
+
+function save() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(keywords));
+  localStorage.setItem(CMD_STATE_KEY, JSON.stringify(cmdStates));
+  const now = new Date();
+  const time = now.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+  setSaveStatus(`保存済 ${time}`, true);
+  updateStats();
+}
+
+function setSaveStatus(msg, ok) {
+  const el = document.getElementById('saveStatus');
+  el.textContent = msg;
+  el.className = 'hdr-save-status' + (ok ? ' saved' : '');
+  if(ok) setTimeout(()=>{el.className='hdr-save-status';el.textContent='—';}, 3000);
+}
+
+// ═══════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════
+function updateStats() {
+  const active = BUILTIN_COMMANDS.filter(c => cmdStates[c.name] !== false).length;
+  document.getElementById('statCmds').textContent = BUILTIN_COMMANDS.length;
+  document.getElementById('statCmdsActive').textContent = `${active} active`;
+  document.getElementById('statKws').textContent = keywords.length;
+  const kwActive = keywords.filter(k=>k.enabled).length;
+  document.getElementById('statKwsActive').textContent = `${kwActive} active`;
+  document.getElementById('tcCommands').textContent = BUILTIN_COMMANDS.length;
+  document.getElementById('tcKeywords').textContent = keywords.length;
+
+  if(keywords.length > 0) {
+    const latest = keywords.slice().sort((a,b)=>(b.updatedAt||0)-(a.updatedAt||0))[0];
+    const d = new Date(latest.updatedAt || 0);
+    document.getElementById('statLast').textContent = d.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('statLastFull').textContent = d.toLocaleDateString('ja-JP');
+  }
+}
+
+// ═══════════════════════════════════════════
+// TABS
+// ═══════════════════════════════════════════
+function switchTab(id) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === id));
+  document.querySelectorAll('.pane').forEach(p => p.classList.toggle('active', p.id === 'pane-'+id));
+  if(id === 'test') setTimeout(()=>document.getElementById('testInput').focus(), 50);
+}
+
+// ═══════════════════════════════════════════
+// COMMAND TABLE
+// ═══════════════════════════════════════════
+function renderCommandTable() {
+  const tbody = document.getElementById('cmdTableBody');
+  tbody.innerHTML = '';
+  BUILTIN_COMMANDS.forEach(cmd => {
+    const enabled = cmdStates[cmd.name] !== false;
+    const cat = CATEGORY_LABELS[cmd.category] || cmd.category;
+    const tr = document.createElement('tr');
+    tr.style.opacity = enabled ? '1' : '0.45';
+    tr.innerHTML = `
+      <td>
+        <div class="cmd-name">
+          <span>${cmd.name}</span>
+        </div>
+      </td>
+      <td><span class="cmd-syntax">${cmd.syntax}</span></td>
+      <td><span class="cmd-desc">${cmd.desc}</span></td>
+      <td><span class="cmd-category cat-${cmd.category}">${cat}</span></td>
+      <td>
+        <div class="toggle-wrap">
+          <button class="toggle ${enabled?'on':''}" onclick="toggleCmd('${cmd.name}', this)"></button>
+          <span class="toggle-lbl">${enabled?'ON':'OFF'}</span>
+        </div>
+      </td>
+    `;
+    tr.style.cursor = 'pointer';
+    tbody.appendChild(tr);
+  });
+}
+
+function toggleCmd(name, btn) {
+  btn.classList.toggle('on');
+  const on = btn.classList.contains('on');
+  cmdStates[name] = on;
+  const lbl = btn.nextElementSibling;
+  if(lbl) lbl.textContent = on ? 'ON' : 'OFF';
+  const row = btn.closest('tr');
+  if(row) row.style.opacity = on ? '1' : '0.45';
+  save();
+}
+
+function enableAllCmds() {
+  BUILTIN_COMMANDS.forEach(c => { cmdStates[c.name] = true; });
+  renderCommandTable();
+  save();
+}
+
+// ═══════════════════════════════════════════
+// KEYWORDS
+// ═══════════════════════════════════════════
+function renderKeywords(filter) {
+  const list = document.getElementById('kwList');
+  list.innerHTML = '';
+  const filtered = filter
+    ? keywords.filter(k => k.trigger.includes(filter) || (k.response||'').includes(filter) || (k.note||'').includes(filter))
+    : keywords;
+
+  if(filtered.length === 0) {
+    list.innerHTML = `<div class="kw-empty"><span class="kw-empty-icon">⚑</span>${
+      filter ? '一致するキーワードが見つかりません' : 'カスタムキーワードがまだ登録されていません<br><span style="color:var(--text2);font-size:10px;">「＋ 新規追加」ボタンから追加できます</span>'
+    }</div>`;
+    return;
+  }
+
+  const typeColors = {success:'var(--green)',error:'var(--red)',warning:'var(--yellow)',info:'var(--cyan)',system:'var(--text3)'};
+  const typeLabels = {success:'SUCCESS',error:'ERROR',warning:'WARNING',info:'INFO',system:'SYSTEM'};
+
+  filtered.forEach((kw, idx) => {
+    const realIdx = keywords.indexOf(kw);
+    const col = typeColors[kw.type] || typeColors.success;
+    const lbl = typeLabels[kw.type] || 'SUCCESS';
+    const card = document.createElement('div');
+    card.className = 'kw-card' + (kw.enabled ? '' : ' disabled');
+    card.innerHTML = `
+      <div class="kw-card-left">
+        <div class="kw-card-meta">
+          <span class="kw-trigger">${escHtml(kw.trigger)}</span>
+          <span class="kw-type-badge" style="color:${col};border-color:${col};">${lbl}</span>
+          ${kw.clearance > 0 ? `<span style="font-family:var(--mono);font-size:9px;color:var(--text3);">LEVEL ${kw.clearance}+</span>` : ''}
+          ${kw.once ? `<span style="font-family:var(--mono);font-size:9px;color:var(--orange);">1回限り</span>` : ''}
+          ${kw.note ? `<span style="font-family:var(--mono);font-size:9px;color:var(--text3);">[${escHtml(kw.note)}]</span>` : ''}
+        </div>
+        <div class="kw-response t-${kw.type}">${escHtml(kw.response).replace(/\\n/g,'<br>')}</div>
+      </div>
+      <div class="kw-card-right">
+        <div class="toggle-wrap">
+          <button class="toggle ${kw.enabled?'on':''}" onclick="toggleKw(${realIdx}, this)"></button>
+          <span class="toggle-lbl">${kw.enabled?'ON':'OFF'}</span>
+        </div>
+        <div class="kw-actions">
+          <button class="kw-btn kw-btn-edit" onclick="openKwModal(${realIdx})">編集</button>
+          <button class="kw-btn kw-btn-del" onclick="deleteKw(${realIdx})">削除</button>
+        </div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+}
+
+function filterKeywords() {
+  renderKeywords(document.getElementById('kwSearch').value.trim().toLowerCase());
+}
+
+function toggleKw(idx, btn) {
+  keywords[idx].enabled = !keywords[idx].enabled;
+  keywords[idx].updatedAt = Date.now();
+  btn.classList.toggle('on', keywords[idx].enabled);
+  const lbl = btn.nextElementSibling;
+  if(lbl) lbl.textContent = keywords[idx].enabled ? 'ON' : 'OFF';
+  btn.closest('.kw-card').classList.toggle('disabled', !keywords[idx].enabled);
+  save();
+}
+
+function deleteKw(idx) {
+  if(!confirm(`「${keywords[idx].trigger}」を削除しますか？`)) return;
+  keywords.splice(idx, 1);
+  renderKeywords(document.getElementById('kwSearch').value.trim().toLowerCase());
+  save();
+}
+
+// ── Modal ──
+function openKwModal(idx) {
+  const modal = document.getElementById('kwModal');
+  document.getElementById('kwEditId').value = idx !== undefined ? String(idx) : '';
+  document.getElementById('modalTitle').textContent = idx !== undefined ? 'EDIT KEYWORD' : 'NEW KEYWORD';
+  if(idx !== undefined) {
+    const kw = keywords[idx];
+    document.getElementById('kwTrigger').value = kw.trigger;
+    document.getElementById('kwType').value = kw.type || 'success';
+    document.getElementById('kwClearance').value = kw.clearance || 0;
+    document.getElementById('kwResponse').value = kw.response || '';
+    document.getElementById('kwNote').value = kw.note || '';
+    document.getElementById('kwEnabled').classList.toggle('on', kw.enabled);
+    document.getElementById('kwOnce').classList.toggle('on', !!kw.once);
+  } else {
+    document.getElementById('kwTrigger').value = '';
+    document.getElementById('kwType').value = 'success';
+    document.getElementById('kwClearance').value = 0;
+    document.getElementById('kwResponse').value = '';
+    document.getElementById('kwNote').value = '';
+    document.getElementById('kwEnabled').classList.add('on');
+    document.getElementById('kwOnce').classList.remove('on');
+  }
+  modal.classList.add('open');
+  setTimeout(() => document.getElementById('kwTrigger').focus(), 50);
+}
+
+function closeKwModal() {
+  document.getElementById('kwModal').classList.remove('open');
+}
+
+function saveKeyword() {
+  const trigger = document.getElementById('kwTrigger').value.trim();
+  const response = document.getElementById('kwResponse').value.trim();
+  if(!trigger || !response) {
+    alert('トリガーキーワードとレスポンステキストは必須です');
+    return;
+  }
+
+  const kw = {
+    trigger: trigger.toLowerCase(),
+    type: document.getElementById('kwType').value,
+    clearance: parseInt(document.getElementById('kwClearance').value) || 0,
+    response,
+    note: document.getElementById('kwNote').value.trim(),
+    enabled: document.getElementById('kwEnabled').classList.contains('on'),
+    once: document.getElementById('kwOnce').classList.contains('on'),
+    updatedAt: Date.now(),
+    firedCount: 0,
+  };
+
+  const editId = document.getElementById('kwEditId').value;
+  if(editId !== '') {
+    kw.firedCount = keywords[parseInt(editId)].firedCount || 0;
+    keywords[parseInt(editId)] = kw;
+  } else {
+    keywords.push(kw);
+  }
+
+  closeKwModal();
+  renderKeywords(document.getElementById('kwSearch').value.trim().toLowerCase());
+  save();
+}
+
+// ═══════════════════════════════════════════
+// TEST CONSOLE
+// ═══════════════════════════════════════════
+function cPrint(text, type='sys') {
+  const out = document.getElementById('testOutput');
+  const lines = text.split('\n');
+  lines.forEach(line => {
+    const div = document.createElement('div');
+    div.className = `cline ${type}`;
+    div.textContent = line;
+    out.appendChild(div);
+  });
+  out.scrollTop = out.scrollHeight;
+}
+
+function clearTestConsole() {
+  document.getElementById('testOutput').innerHTML = '';
+  cPrint('Console cleared.', 'sys');
+}
+
+function printTestHelp() {
+  cPrint('─────────────────────────────────────────', 'sys');
+  cPrint('BUILTIN COMMANDS', 'i');
+  BUILTIN_COMMANDS.forEach(c => {
+    const enabled = cmdStates[c.name] !== false;
+    cPrint(`  ${c.syntax.padEnd(22)} ${c.desc}` + (enabled ? '' : ' [DISABLED]'), enabled ? 's' : 'sys');
+  });
+  if(keywords.length > 0) {
+    cPrint('', 'sys');
+    cPrint('CUSTOM KEYWORDS', 'i');
+    keywords.filter(k=>k.enabled).forEach(k => {
+      cPrint(`  ${k.trigger.padEnd(22)} → [${k.type}]`, 's');
+    });
+  }
+  cPrint('─────────────────────────────────────────', 'sys');
+}
+
+function processTestCommand(input) {
+  const parts = input.trim().split(' ');
+  const cmd = parts[0].toLowerCase();
+  const args = parts.slice(1);
+
+  // Check keywords first
+  const kw = keywords.find(k => k.enabled && k.trigger === cmd);
+  if(kw) {
+    let resp = kw.response.replace(/{user}/g,'TestUser').replace(/{level}/g,'3').replace(/{time}/g,new Date().toLocaleTimeString('ja-JP'));
+    const typeMap = {success:'s',error:'e',warning:'w',info:'i',system:'sys'};
+    const t = typeMap[kw.type] || 's';
+    resp.split('\\n').forEach(line => cPrint(line, t));
+    if(kw.once) cPrint(`[注意: このキーワードは「一度だけ発火」設定です]`,'w');
+    return;
+  }
+
+  // Check if command is disabled
+  if(cmdStates[cmd] === false) {
+    cPrint(`Command disabled: ${cmd}`, 'e');
+    return;
+  }
+
+  // Builtin simulation
+  const builtin = BUILTIN_COMMANDS.find(c => c.name === cmd);
+  if(builtin) {
+    if(cmd === 'clear') { clearTestConsole(); return; }
+    if(cmd === 'echo') { cPrint(args.join(' '), 's'); return; }
+    if(cmd === 'date') { cPrint(new Date().toString(), 'i'); return; }
+    if(cmd === 'help') { printTestHelp(); return; }
+    // Simulate response
+    cPrint(`[シミュレーション] ${builtin.name}`, 'i');
+    builtin.response.split('\n').forEach(l => cPrint(l, 's'));
+  } else {
+    cPrint(`Command not found: ${cmd}`, 'e');
+    cPrint(`Type 'help' for available commands.`, 'sys');
+  }
+}
+
+// Input handler
+document.getElementById('testInput').addEventListener('keydown', function(e) {
+  if(e.key === 'Enter') {
+    const val = this.value.trim();
+    if(!val) return;
+    testHistory.push(val);
+    testHistIdx = testHistory.length;
+    cPrint(`sea@console:~# ${val}`, 'input');
+    processTestCommand(val);
+    cPrint('', 'sys');
+    this.value = '';
+  } else if(e.key === 'ArrowUp') {
+    e.preventDefault();
+    if(testHistIdx > 0) { testHistIdx--; this.value = testHistory[testHistIdx]; }
+  } else if(e.key === 'ArrowDown') {
+    e.preventDefault();
+    if(testHistIdx < testHistory.length-1) { testHistIdx++; this.value = testHistory[testHistIdx]; }
+    else { testHistIdx = testHistory.length; this.value = ''; }
+  } else if(e.key === 'Tab') {
+    e.preventDefault();
+    const prefix = this.value.toLowerCase();
+    if(!prefix) return;
+    const allCmds = [...BUILTIN_COMMANDS.map(c=>c.name), ...keywords.filter(k=>k.enabled).map(k=>k.trigger)];
+    const matches = allCmds.filter(c=>c.startsWith(prefix));
+    if(matches.length === 1) this.value = matches[0];
+    else if(matches.length > 1) { cPrint(matches.join('  '), 'sys'); }
+  }
+});
+
+// Close modal on background click
+document.getElementById('kwModal').addEventListener('click', function(e) {
+  if(e.target === this) closeKwModal();
+});
+
+// ═══════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════
+function escHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+function init() {
+  load();
+  renderCommandTable();
+  renderKeywords();
+  updateStats();
+
+  // Welcome in test console
+  cPrint('╔═══════════════════════════════════════╗', 's');
+  cPrint('║   SEA CONSOLE TEST ENVIRONMENT        ║', 's');
+  cPrint('╚═══════════════════════════════════════╝', 's');
+  cPrint('SEA EROSION AGENCY // ADMIN TEST MODE', 'sys');
+  cPrint(`Loaded ${BUILTIN_COMMANDS.length} commands, ${keywords.length} custom keywords.`, 'i');
+  cPrint(`Type 'help' to see all commands. Tab to autocomplete.`, 'sys');
+  cPrint('', 'sys');
+}
+
+init();
+</script>
+</body>
+</html>

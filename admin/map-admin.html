@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>マップ管理端末 — 海蝕機関</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #06090e;
+  --panel: #0b0f17;
+  --panel2: #101520;
+  --border: #18202e;
+  --border2: #223040;
+  --cyan: #00d4ff;
+  --cyan-dim: #002030;
+  --green: #00e676;
+  --green-dim: #002810;
+  --yellow: #ffd740;
+  --yellow-dim: #2a2000;
+  --orange: #ff9800;
+  --red: #ff4444;
+  --red-dim: #2a0808;
+  --purple: #a78bfa;
+  --text: #cdd6e8;
+  --text2: #7a8aa0;
+  --text3: #445060;
+  --mono: 'Share Tech Mono', monospace;
+  --sans: 'Noto Sans JP', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 13px;
+  height: 100vh; display: flex; flex-direction: column; overflow: hidden;
+}
+body::before {
+  content: ''; position: fixed; inset: 0; pointer-events: none; z-index: 9999;
+  background: repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,212,255,.01) 3px,rgba(0,212,255,.01) 4px);
+}
+.header {
+  background: var(--panel); border-bottom: 1px solid var(--border2);
+  padding: 0 20px; height: 48px; display: flex; align-items: center; gap: 14px;
+  flex-shrink: 0; z-index: 100;
+}
+.header-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--orange); box-shadow: 0 0 8px var(--orange); animation: blink 2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:.3} }
+.header-title { font-family: var(--mono); font-size: 12px; color: var(--orange); letter-spacing: .2em; }
+.header-sub { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+.header-sep { flex: 1; }
+.header-mode {
+  display: flex; gap: 4px;
+}
+.mode-btn {
+  background: none; border: 1px solid var(--border2); color: var(--text3);
+  font-family: var(--mono); font-size: 10px; padding: 5px 12px; cursor: pointer;
+  letter-spacing: .06em; transition: all .15s;
+}
+.mode-btn:hover { border-color: var(--orange); color: var(--orange); }
+.mode-btn.active { background: #281400; border-color: var(--orange); color: var(--orange); }
+.btn-save {
+  background: var(--green-dim); border: 1px solid var(--green); color: var(--green);
+  font-family: var(--mono); font-size: 11px; padding: 6px 16px; cursor: pointer;
+  letter-spacing: .1em; transition: background .15s;
+}
+.btn-save:hover { background: #003820; }
+.btn-dl {
+  background: none; border: 1px solid var(--border2); color: var(--text2);
+  font-family: var(--mono); font-size: 10px; padding: 6px 12px; cursor: pointer;
+  letter-spacing: .06em; transition: all .15s;
+}
+.btn-dl:hover { border-color: var(--orange); color: var(--orange); }
+
+.main { display: flex; flex: 1; overflow: hidden; }
+
+/* Left: incident list */
+.list-pane {
+  width: 300px; background: var(--panel); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; flex-shrink: 0; overflow: hidden;
+}
+.list-header {
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
+}
+.list-title { font-family: var(--mono); font-size: 11px; color: var(--orange); letter-spacing: .1em; flex: 1; }
+.btn-add {
+  background: var(--panel2); border: 1px solid var(--border2); color: var(--orange);
+  font-family: var(--mono); font-size: 10px; padding: 4px 10px; cursor: pointer;
+  transition: all .15s;
+}
+.btn-add:hover { border-color: var(--orange); background: #281400; }
+
+.list-stats {
+  padding: 8px 16px; border-bottom: 1px solid var(--border);
+  display: flex; gap: 12px;
+}
+.stat-pill {
+  font-family: var(--mono); font-size: 9px; padding: 2px 8px; border-radius: 20px;
+}
+
+.inc-list { overflow-y: auto; flex: 1; }
+.inc-item {
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background .1s; display: flex; gap: 10px; align-items: flex-start;
+}
+.inc-item:hover { background: var(--panel2); }
+.inc-item.active { background: #0f1a28; border-left: 2px solid var(--cyan); }
+.sev-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 4px; flex-shrink: 0; }
+.inc-info { flex: 1; min-width: 0; }
+.inc-name { font-size: 12px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 2px; }
+.inc-loc { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+.inc-meta { text-align: right; flex-shrink: 0; }
+.inc-sev { font-family: var(--mono); font-size: 9px; padding: 2px 6px; border-radius: 2px; margin-bottom: 3px; display: inline-block; }
+.inc-status { font-family: var(--mono); font-size: 9px; color: var(--text3); }
+
+/* Right: map + edit split */
+.right-pane { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* Map canvas area */
+.map-pane {
+  height: 280px; background: #060c14; border-bottom: 1px solid var(--border);
+  position: relative; flex-shrink: 0; overflow: hidden;
+}
+.map-bg {
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, #060c14 0%, #0a1020 50%, #060c14 100%);
+}
+.map-grid {
+  position: absolute; inset: 0;
+  background-image: linear-gradient(var(--border) 1px, transparent 1px),
+                    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: .4;
+}
+.map-label {
+  position: absolute; top: 10px; left: 16px;
+  font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: .15em;
+}
+.map-label-r {
+  position: absolute; top: 10px; right: 16px;
+  font-family: var(--mono); font-size: 9px; color: var(--text3);
+}
+.map-hint {
+  position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%);
+  font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: .08em;
+}
+canvas#mapCanvas {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  cursor: crosshair;
+}
+
+/* Edit pane */
+.edit-pane { flex: 1; overflow-y: auto; padding: 20px; }
+
+.inc-edit-header {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 20px;
+}
+.inc-edit-id { font-family: var(--mono); font-size: 11px; color: var(--cyan); }
+.inc-edit-title { font-size: 16px; font-weight: 500; flex: 1; }
+.btn-del-inc {
+  background: none; border: 1px solid var(--red); color: var(--red);
+  font-family: var(--mono); font-size: 10px; padding: 5px 10px; cursor: pointer;
+  transition: background .15s;
+}
+.btn-del-inc:hover { background: var(--red-dim); }
+
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field.full { grid-column: span 2; }
+.field-label {
+  font-family: var(--mono); font-size: 10px; color: var(--text3); letter-spacing: .1em; text-transform: uppercase;
+}
+.field-input {
+  background: var(--panel2); border: 1px solid var(--border2); color: var(--text);
+  padding: 7px 10px; font-family: var(--sans); font-size: 12px; outline: none; transition: border-color .15s; resize: vertical;
+}
+.field-input:focus { border-color: var(--cyan); }
+select.field-input {
+  cursor: pointer; appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%237a8aa0'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 8px center; padding-right: 24px;
+}
+
+/* Position editor */
+.pos-row {
+  display: flex; gap: 10px; align-items: center; margin-top: 6px;
+}
+.pos-badge {
+  background: var(--panel2); border: 1px solid var(--cyan); color: var(--cyan);
+  font-family: var(--mono); font-size: 10px; padding: 4px 12px; letter-spacing: .08em;
+}
+.pos-hint { font-family: var(--mono); font-size: 10px; color: var(--text3); }
+
+/* Sections */
+.section-divider {
+  font-family: var(--mono); font-size: 9px; color: var(--text3); letter-spacing: .15em;
+  text-transform: uppercase; padding: 10px 0 8px; border-bottom: 1px solid var(--border); margin-bottom: 12px;
+}
+
+/* Empty state */
+.empty { height: 100%; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 12px; color: var(--text3); }
+.empty-icon { font-family: var(--mono); font-size: 32px; opacity: .3; }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 20px; right: 20px; background: var(--panel);
+  border: 1px solid var(--orange); color: var(--orange); font-family: var(--mono);
+  font-size: 11px; padding: 10px 16px; opacity: 0; transform: translateY(8px);
+  transition: all .25s; pointer-events: none; z-index: 9998;
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.green { border-color: var(--green); color: var(--green); }
+
+::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: var(--border2); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-dot"></div>
+  <div class="header-title">KAISHOKU // MAP ADMIN</div>
+  <div class="header-sub">マップ・インシデント管理端末</div>
+  <div class="header-sep"></div>
+  <div class="header-mode">
+    <button class="mode-btn active" id="modeMap" onclick="setMode('map')">マップ用 (x/y%)</button>
+    <button class="mode-btn" id="modeArea" onclick="setMode('area')">エリア用 (lat/lon)</button>
+  </div>
+  <button class="btn-dl" onclick="downloadJSON()">↓ JSON</button>
+  <button class="btn-save" onclick="saveAll()">▶ 保存</button>
+</div>
+
+<div class="main">
+  <!-- Incident List -->
+  <div class="list-pane">
+    <div class="list-header">
+      <div class="list-title" id="listTitle">マップ インシデント</div>
+      <button class="btn-add" onclick="addIncident()">+ 追加</button>
+    </div>
+    <div class="list-stats" id="listStats"></div>
+    <div class="inc-list" id="incList"></div>
+  </div>
+
+  <!-- Right pane -->
+  <div class="right-pane">
+    <!-- Map canvas -->
+    <div class="map-pane">
+      <div class="map-bg"></div>
+      <div class="map-grid"></div>
+      <div class="map-label">INCIDENT MAP — CLICK TO REPOSITION</div>
+      <div class="map-label-r" id="mapCoords">—</div>
+      <canvas id="mapCanvas"></canvas>
+      <div class="map-hint">クリックで選択中のインシデントの位置を変更</div>
+    </div>
+
+    <!-- Edit form -->
+    <div class="edit-pane" id="editPane">
+      <div class="empty">
+        <div class="empty-icon">[ MAP ]</div>
+        <p>左のリストからインシデントを選択</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toastEl"></div>
+
+<script>
+let mapData = {"incidents": [{"id": "inc-001", "name": "大分港次元歪曲事案", "severity": "critical", "position": {"x": 65, "y": 55}, "location": "大分港沿岸部", "status": "対応中", "entity": "E-002 (波喰い) 複数体確認", "gsi": "12.4%", "assignedDivision": "収束部門 第1班", "description": "大分港沿岸で大規模な次元境界の歪みを検知。複数の波喰いが出現し、付近の海蝕現象を捕食中。", "timestamp": "2026-02-06 08:30"}, {"id": "inc-002", "name": "別府湾不根侵入事案", "severity": "warning", "position": {"x": 48, "y": 50}, "location": "別府湾沖", "status": "監視中", "entity": "不根（未登録船舶）", "gsi": "4.2%", "assignedDivision": "港湾部門", "description": "未認可の不根が別府湾に接近中。外事部門が交渉を試みている。", "timestamp": "2026-02-06 10:15"}, {"id": "inc-003", "name": "由布岳時空歪曲", "severity": "critical", "position": {"x": 38, "y": 52}, "location": "由布岳中腹", "status": "対応中", "entity": "E-004 (時間遅延帯)", "gsi": "8.7%", "assignedDivision": "収束部門 第2班", "description": "由布岳中腹で時間遅延帯が発生。半径200m以内の時間流が通常の1/50に減速。", "timestamp": "2026-02-06 06:00"}, {"id": "inc-004", "name": "姫島沖境界ゲート", "severity": "warning", "position": {"x": 58, "y": 22}, "location": "姫島沖", "status": "監視中", "entity": "なし（自然発生）", "gsi": "5.1%", "assignedDivision": "港湾部門", "description": "姫島沖に境界ゲートが自然発生。現時点で実体の侵入は確認されていない。", "timestamp": "2026-02-06 11:00"}, {"id": "inc-005", "name": "中津市内認識異常", "severity": "warning", "position": {"x": 22, "y": 28}, "location": "中津市中心部", "status": "対応中", "entity": "E-003 (鏡面侵食体) 疑い", "gsi": "3.8%", "assignedDivision": "支援部門・外事部門", "description": "市民複数名が「知らない人物が自分のふりをしている」と通報。鏡面侵食体の可能性。", "timestamp": "2026-02-06 09:45"}, {"id": "inc-006", "name": "佐伯湾残滓回収作業", "severity": "safe", "position": {"x": 80, "y": 80}, "location": "佐伯湾沖", "status": "収束済み", "entity": "なし", "gsi": "0.8%", "assignedDivision": "工作部門", "description": "昨日の海蝕現象収束後、残滓の回収作業を実施中。特に問題なし。", "timestamp": "2026-02-05 18:30"}, {"id": "inc-007", "name": "日田市郊外漂流者発見", "severity": "safe", "position": {"x": 20, "y": 60}, "location": "日田市郊外", "status": "対話中", "entity": "E-001 (漂流者)", "gsi": "1.2%", "assignedDivision": "外事部門", "description": "迷い込んだ漂流者を発見。友好的で、元の次元への帰還を希望している。", "timestamp": "2026-02-06 07:20"}, {"id": "inc-008", "name": "豊後水道次元境界監視", "severity": "warning", "position": {"x": 72, "y": 68}, "location": "豊後水道深海", "status": "監視中", "entity": "なし", "gsi": "6.3%", "assignedDivision": "港湾部門", "description": "境界ゲートの安定性が低下。24時間監視体制を敷いている。", "timestamp": "2026-02-06 05:00"}, {"id": "inc-009", "name": "国東半島空間歪み", "severity": "critical", "position": {"x": 65, "y": 30}, "location": "国東半島", "status": "対応中", "entity": "[機密]", "gsi": "15.2%", "assignedDivision": "収束部門 全班", "description": "[LEVEL 4以上] 概念捕食者の出現が疑われる。付近住民の記憶に異常な欠損が確認されている。", "timestamp": "2026-02-06 04:00"}, {"id": "inc-010", "name": "豊後高田海域不根商人", "severity": "safe", "position": {"x": 44, "y": 20}, "location": "豊後高田市沖海域", "status": "取引完了", "entity": "E-006 (不根の行商人)", "gsi": "0.5%", "assignedDivision": "外事部門", "description": "定期的に訪れる不根の行商人と物資交換を実施。特に問題なし。", "timestamp": "2026-02-06 12:00"}], "statistics": {"total": 10, "critical": 3, "warning": 4, "safe": 3}};
+let areaData = {"incidents": [{"id": "area-001", "severity": "critical", "status": "対応中", "name": "大分港次元歪曲事案", "lon": 131.641, "lat": 33.218, "location": "大分港沿岸部", "entity": "E-002（波喰い）複数体", "gsi": 12.4, "division": "収束部門 第1班", "desc": "大分港沿岸で大規模な次元境界の歪みを検知。波喰い3体が出現し付近の海蝕エネルギーを捕食中。", "time": "2026-02-06 08:30"}, {"id": "area-002", "severity": "warning", "status": "監視中", "name": "別府湾不根侵入事案", "lon": 131.493, "lat": 33.286, "location": "別府湾沖", "entity": "不根（未登録）", "gsi": 4.2, "division": "港湾部門・外事部門", "desc": "未認可の不根が別府湾に侵入。外事部門が交渉を継続中。", "time": "2026-02-06 10:15"}, {"id": "area-003", "severity": "critical", "status": "対応中", "name": "由布岳時空歪曲", "lon": 131.392, "lat": 33.282, "location": "由布岳周辺", "entity": "E-004（時間遅延帯）", "gsi": 8.7, "division": "収束部門 第2班", "desc": "由布岳中腹で時間遅延帯が発生。半径200m以内の時間流が1/50に減速。", "time": "2026-02-06 06:00"}, {"id": "area-004", "severity": "warning", "status": "監視中", "name": "姫島境界ゲート", "lon": 131.665, "lat": 33.718, "location": "姫島沖", "entity": "なし（自然発生）", "gsi": 5.1, "division": "港湾部門", "desc": "姫島沖に境界ゲートが自然発生。実体の侵入は未確認。", "time": "2026-02-07 03:20"}, {"id": "area-005", "severity": "warning", "status": "対応中", "name": "中津市内認識異常", "lon": 131.186, "lat": 33.597, "location": "中津市中心部", "entity": "E-006（認識阻害残滓）", "gsi": 3.8, "division": "外事部門", "desc": "中津市中心部で市民の認識異常が報告。複数人が「海が見える」と証言。", "time": "2026-02-07 14:45"}, {"id": "area-006", "severity": "safe", "status": "収束済み", "name": "佐伯湾深海異常", "lon": 131.916, "lat": 32.967, "location": "佐伯湾沖", "entity": "E-001（漂流者）", "gsi": 1.2, "division": "収束部門 第3班", "desc": "佐伯湾沖で漂流者を検知。対話による誘導で自主帰還完了。", "time": "2026-02-05 19:00"}, {"id": "area-007", "severity": "safe", "status": "収束済み", "name": "日田盆地次元薄化", "lon": 130.941, "lat": 33.321, "location": "日田市盆地", "entity": "なし", "gsi": 2.3, "division": "港湾部門", "desc": "日田盆地で次元境界の薄化を検知。自然収束を確認。継続観察中。", "time": "2026-02-04 08:00"}, {"id": "area-008", "severity": "critical", "status": "対応中", "name": "国東半島波喰い群", "lon": 131.728, "lat": 33.576, "location": "国東半島東岸", "entity": "E-002（波喰い）5体", "gsi": 11.2, "division": "収束部門 第1班・第2班", "desc": "国東半島東岸に波喰いが5体同時出現。過去最大規模。両班合同で対応中。", "time": "2026-02-08 02:15"}, {"id": "area-009", "severity": "safe", "status": "観察中", "name": "九重山脈時層観測", "lon": 131.245, "lat": 33.087, "location": "九重山頂付近", "entity": "なし（残滓のみ）", "gsi": 0.8, "division": "工作部門", "desc": "九重山頂付近で時層粉の自然堆積を確認。残滓として採取済み。", "time": "2026-02-03 11:30"}]};
+
+let mode = 'map'; // 'map' or 'area'
+let selectedIdx = null;
+
+const SEV_COLORS = { critical: '#ff4444', warning: '#ff9800', safe: '#00e676', unknown: '#7a8aa0' };
+const SEV_LABELS = { critical: '緊急', warning: '警戒', safe: '安全', unknown: '不明' };
+const STATUS_OPTIONS = ['対応中', '収束済', '監視中', '保留'];
+
+function getCurrentData() { return mode === 'map' ? mapData.incidents : areaData.incidents; }
+function getSelectedItem() {
+  const items = getCurrentData();
+  return selectedIdx !== null ? items[selectedIdx] : null;
+}
+
+function setMode(m) {
+  mode = m;
+  selectedIdx = null;
+  document.getElementById('modeMap').classList.toggle('active', m === 'map');
+  document.getElementById('modeArea').classList.toggle('active', m === 'area');
+  document.getElementById('listTitle').textContent = m === 'map' ? 'マップ インシデント' : 'エリア インシデント';
+  renderList();
+  renderEdit();
+  drawMap();
+}
+
+// ─── List ───
+function renderList() {
+  const items = getCurrentData();
+  const el = document.getElementById('incList');
+  
+  // Stats
+  const counts = { critical:0, warning:0, safe:0 };
+  items.forEach(i => counts[i.severity] = (counts[i.severity]||0)+1);
+  document.getElementById('listStats').innerHTML = `
+    <span class="stat-pill" style="background:#2a0808;color:#ff4444;border:1px solid #ff4444">危 ${counts.critical||0}</span>
+    <span class="stat-pill" style="background:#281400;color:#ff9800;border:1px solid #ff9800">警 ${counts.warning||0}</span>
+    <span class="stat-pill" style="background:#002810;color:#00e676;border:1px solid #00e676">安 ${counts.safe||0}</span>
+    <span style="font-family:var(--mono);font-size:9px;color:var(--text3);margin-left:auto">計 ${items.length}</span>`;
+
+  el.innerHTML = items.map((inc, i) => {
+    const col = SEV_COLORS[inc.severity] || '#888';
+    const isSelected = i === selectedIdx;
+    return `<div class="inc-item ${isSelected?'active':''}" onclick="selectIncident(${i})">
+      <div class="sev-dot" style="background:${col};box-shadow:0 0 4px ${col}"></div>
+      <div class="inc-info">
+        <div class="inc-name">${inc.name || '(名称未設定)'}</div>
+        <div class="inc-loc">${inc.location || (mode==='area' ? (inc.lat?.toFixed(2)+', '+inc.lon?.toFixed(2)) : '')}</div>
+      </div>
+      <div class="inc-meta">
+        <div class="inc-sev" style="background:${col}22;color:${col};border:1px solid ${col}">${SEV_LABELS[inc.severity]||'—'}</div>
+        <div class="inc-status">${inc.status||'—'}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function selectIncident(idx) {
+  selectedIdx = idx;
+  renderList();
+  renderEdit();
+  drawMap();
+}
+
+// ─── Edit Form ───
+function renderEdit() {
+  const inc = getSelectedItem();
+  const el = document.getElementById('editPane');
+  
+  if (!inc) {
+    el.innerHTML = `<div class="empty"><div class="empty-icon">[ MAP ]</div><p>左のリストからインシデントを選択</p></div>`;
+    return;
+  }
+
+  const col = SEV_COLORS[inc.severity] || '#888';
+  const posHtml = mode === 'map'
+    ? `<div class="field full">
+        <label class="field-label">位置 (x%, y%) — マップ上でクリックして変更可能</label>
+        <div class="pos-row">
+          <span class="pos-badge">X: ${inc.position?.x?.toFixed(1)||0}%</span>
+          <span class="pos-badge">Y: ${inc.position?.y?.toFixed(1)||0}%</span>
+          <span class="pos-hint">または数値で入力:</span>
+          <input type="number" id="f_posX" value="${inc.position?.x||0}" min="0" max="100" step="0.1" style="width:65px;background:var(--panel2);border:1px solid var(--border2);color:var(--cyan);padding:6px 8px;font-family:var(--mono);font-size:11px;outline:none;" oninput="updatePos('x',this.value)">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">%</span>
+          <input type="number" id="f_posY" value="${inc.position?.y||0}" min="0" max="100" step="0.1" style="width:65px;background:var(--panel2);border:1px solid var(--border2);color:var(--cyan);padding:6px 8px;font-family:var(--mono);font-size:11px;outline:none;" oninput="updatePos('y',this.value)">
+          <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">%</span>
+        </div>
+      </div>`
+    : `<div class="field"><label class="field-label">緯度 (lat)</label><input class="field-input" type="number" id="f_lat" value="${inc.lat||0}" step="0.001" oninput="updateField('lat',parseFloat(this.value))"></div>
+       <div class="field"><label class="field-label">経度 (lon)</label><input class="field-input" type="number" id="f_lon" value="${inc.lon||0}" step="0.001" oninput="updateField('lon',parseFloat(this.value))"></div>`;
+
+  el.innerHTML = `
+    <div class="inc-edit-header">
+      <div class="inc-edit-id">${inc.id||'NEW'}</div>
+      <div class="inc-edit-title" style="color:${col}">${inc.name||'新規インシデント'}</div>
+      <button class="btn-del-inc" onclick="deleteIncident()">✕ 削除</button>
+    </div>
+    
+    <div class="section-divider">基本情報</div>
+    <div class="form-grid">
+      <div class="field"><label class="field-label">ID</label><input class="field-input" id="f_id" value="${esc(inc.id||'')}" oninput="updateField('id',this.value)"></div>
+      <div class="field"><label class="field-label">インシデント名</label><input class="field-input" id="f_name" value="${esc(inc.name||'')}" oninput="updateField('name',this.value)"></div>
+      <div class="field"><label class="field-label">重大度</label>
+        <select class="field-input" id="f_sev" onchange="updateField('severity',this.value);renderEdit();">
+          ${['critical','warning','safe','unknown'].map(s=>`<option value="${s}" ${inc.severity===s?'selected':''}>${SEV_LABELS[s]} (${s})</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label class="field-label">ステータス</label>
+        <select class="field-input" id="f_status" onchange="updateField('status',this.value)">
+          ${STATUS_OPTIONS.map(s=>`<option ${inc.status===s?'selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div class="field"><label class="field-label">場所名</label><input class="field-input" id="f_loc" value="${esc(inc.location||'')}" oninput="updateField('location',this.value)"></div>
+      <div class="field"><label class="field-label">担当部門</label><input class="field-input" id="f_div" value="${esc(inc.assignedDivision||inc.division||'')}" oninput="updateField(${mode==='map'?''assignedDivision'':''division''},this.value)"></div>
+      <div class="field"><label class="field-label">実体</label><input class="field-input" id="f_ent" value="${esc(inc.entity||'')}" oninput="updateField('entity',this.value)"></div>
+      <div class="field"><label class="field-label">GSI値</label><input class="field-input" id="f_gsi" value="${esc(String(inc.gsi||''))}" oninput="updateField('gsi',this.value)"></div>
+      ${posHtml}
+      <div class="field full"><label class="field-label">タイムスタンプ</label><input class="field-input" id="f_ts" value="${esc(inc.timestamp||inc.time||'')}" oninput="updateField(${mode==='map'?''timestamp'':''time''},this.value)"></div>
+      <div class="field full"><label class="field-label">説明</label><textarea class="field-input" rows="3" id="f_desc" oninput="updateField(${mode==='map'?''description'':''desc''},this.value)">${esc(inc.description||inc.desc||'')}</textarea></div>
+    </div>`;
+}
+
+function updateField(key, val) {
+  const inc = getSelectedItem();
+  if (inc) { inc[key] = val; }
+}
+
+function updatePos(axis, val) {
+  const inc = getSelectedItem();
+  if (!inc) return;
+  inc.position = inc.position || {};
+  inc.position[axis] = parseFloat(val) || 0;
+  drawMap();
+  // Update badge
+  const badge = document.querySelector('.pos-badge');
+  const badges = document.querySelectorAll('.pos-badge');
+  if (axis === 'x' && badges[0]) badges[0].textContent = `X: ${(parseFloat(val)||0).toFixed(1)}%`;
+  if (axis === 'y' && badges[1]) badges[1].textContent = `Y: ${(parseFloat(val)||0).toFixed(1)}%`;
+}
+
+// ─── Map Canvas ───
+let canvas, ctx;
+
+function initCanvas() {
+  canvas = document.getElementById('mapCanvas');
+  ctx = canvas.getContext('2d');
+  
+  canvas.addEventListener('mousemove', e => {
+    const rect = canvas.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width * 100).toFixed(1);
+    const y = ((e.clientY - rect.top) / rect.height * 100).toFixed(1);
+    document.getElementById('mapCoords').textContent = `X:${x}% Y:${y}%`;
+  });
+
+  canvas.addEventListener('click', e => {
+    if (selectedIdx === null || mode !== 'map') return;
+    const rect = canvas.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width * 100;
+    const y = (e.clientY - rect.top) / rect.height * 100;
+    const inc = getSelectedItem();
+    if (inc) {
+      inc.position = inc.position || {};
+      inc.position.x = parseFloat(x.toFixed(1));
+      inc.position.y = parseFloat(y.toFixed(1));
+      drawMap();
+      renderEdit();
+      toast(`位置更新: X=${x.toFixed(1)}% Y=${y.toFixed(1)}%`);
+    }
+  });
+
+  const resizeCanvas = () => {
+    const rect = canvas.parentElement.getBoundingClientRect();
+    canvas.width = rect.width;
+    canvas.height = rect.height;
+    drawMap();
+  };
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+}
+
+function drawMap() {
+  if (!canvas || !ctx) return;
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  if (mode !== 'map') {
+    // Area mode: show lat/lon grid approximation
+    ctx.fillStyle = '#445060';
+    ctx.font = '11px Share Tech Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText('エリアモード: マップは利用できません (lat/lon形式)', W/2, H/2);
+    return;
+  }
+
+  const items = getCurrentData();
+  items.forEach((inc, i) => {
+    if (!inc.position) return;
+    const x = (inc.position.x / 100) * W;
+    const y = (inc.position.y / 100) * H;
+    const col = SEV_COLORS[inc.severity] || '#888';
+    const isSelected = i === selectedIdx;
+    const r = isSelected ? 12 : 8;
+
+    // Pulse ring for selected
+    if (isSelected) {
+      ctx.beginPath();
+      ctx.arc(x, y, r + 6, 0, Math.PI * 2);
+      ctx.strokeStyle = col + '40';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Main dot
+    ctx.beginPath();
+    ctx.arc(x, y, r, 0, Math.PI * 2);
+    ctx.fillStyle = col + (isSelected ? 'ff' : '99');
+    ctx.fill();
+    ctx.strokeStyle = col;
+    ctx.lineWidth = isSelected ? 2 : 1;
+    ctx.stroke();
+
+    // Label
+    ctx.fillStyle = isSelected ? col : '#cdd6e8';
+    ctx.font = `${isSelected?'bold ':''} ${isSelected?10:9}px Share Tech Mono`;
+    ctx.textAlign = 'left';
+    ctx.fillText(inc.name || inc.id || '?', x + r + 4, y + 4);
+  });
+}
+
+// ─── Add / Delete ───
+function addIncident() {
+  const items = getCurrentData();
+  const id = (mode === 'map' ? 'inc' : 'area') + '-' + String(items.length + 1).padStart(3, '0');
+  const newInc = mode === 'map'
+    ? { id, name: '新規インシデント', severity: 'warning', position: { x: 50, y: 50 }, location: '', status: '対応中', entity: '', gsi: '', assignedDivision: '', description: '', timestamp: new Date().toISOString().slice(0,16).replace('T',' ') }
+    : { id, name: '新規インシデント', severity: 'warning', lat: 33.0, lon: 131.0, location: '', status: '対応中', entity: '', gsi: 0, division: '', desc: '', time: new Date().toISOString().slice(0,16).replace('T',' ') };
+  items.push(newInc);
+  selectedIdx = items.length - 1;
+  renderList();
+  renderEdit();
+  drawMap();
+  toast('新規インシデントを追加しました');
+}
+
+function deleteIncident() {
+  const items = getCurrentData();
+  if (selectedIdx === null) return;
+  if (!confirm('このインシデントを削除しますか？')) return;
+  items.splice(selectedIdx, 1);
+  selectedIdx = null;
+  renderList();
+  renderEdit();
+  drawMap();
+  toast('削除しました');
+}
+
+// ─── Save ───
+function saveAll() {
+  // Sync statistics for map data
+  const sev = { critical:0, warning:0, safe:0 };
+  mapData.incidents.forEach(i => sev[i.severity] = (sev[i.severity]||0)+1);
+  mapData.statistics = { total: mapData.incidents.length, ...sev };
+  
+  localStorage.setItem('kaishoku_map_incidents_override', JSON.stringify(mapData));
+  localStorage.setItem('kaishoku_area_incidents_override', JSON.stringify(areaData));
+  toast('localStorageに保存しました ✓', 'green');
+}
+
+function downloadJSON() {
+  const data = mode === 'map' ? mapData : areaData;
+  const filename = mode === 'map' ? 'map-incidents.json' : 'area-incidents-data.json';
+  const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  toast(filename + ' をダウンロードしました ✓', 'green');
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function toast(msg, type='') {
+  const t = document.getElementById('toastEl');
+  t.textContent = msg;
+  t.className = 'toast show ' + type;
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.className = 'toast', 2500);
+}
+
+// Init
+initCanvas();
+renderList();
+renderEdit();
+</script>
+</body>
+</html>

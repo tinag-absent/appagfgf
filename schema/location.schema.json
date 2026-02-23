@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "KaishokuLocation",
+  "description": "施設・場所データのスキーマ",
+  "type": "object",
+  "required": ["id", "name", "type"],
+  "additionalProperties": true,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^loc-\\d+$"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "type": {
+      "type": "string"
+    },
+    "coordinates":   { "type": "string" },
+    "description":   { "type": "string" },
+    "status":        { "type": "string" },
+    "securityLevel": { "type": "integer", "minimum": 1, "maximum": 3 },
+    "notes":         { "type": "string" }
+  }
+}

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>404 - 海蝕機関</title>
+  <link rel="icon" type="image/png" href="./images/favicon.png">
+  <link rel="stylesheet" href="./css/style.css">
+  <style>
+    body { display:flex; align-items:center; justify-content:center; min-height:100vh; }
+    .wrap { text-align:center; }
+    .code { font-family:'JetBrains Mono',monospace; font-size:6rem; font-weight:700;
+            color:var(--primary); line-height:1; }
+    .msg  { font-family:'Space Grotesk',sans-serif; font-size:1.25rem;
+            color:var(--muted-foreground); margin:1rem 0 2rem; text-transform:uppercase; letter-spacing:.1em; }
+    .btn  { display:inline-block; padding:.75rem 2rem; border:1px solid var(--primary);
+            color:var(--primary); font-family:'JetBrains Mono',monospace; font-size:.875rem;
+            text-decoration:none; text-transform:uppercase; letter-spacing:.1em;
+            transition:all .3s; }
+    .btn:hover { background:var(--primary); color:var(--primary-foreground); }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="code">404</div>
+    <div class="msg">アクセス不能 — ページが見つかりません</div>
+    <a href="./index.html" class="btn">ダッシュボードへ戻る</a>
+  </div>
+  <script>
+    // GitHub Pages SPA fallback: ?p= redirect
+    (function(){
+      var q = window.location.search;
+      if (q.startsWith('?p=')) {
+        window.history.replaceState(null,null, q.slice(3) + window.location.hash);
+      }
+    })();
+  </script>
+  <script src="./js/core/error-handler.js" defer></script>
+  <script src="./js/data/data-bundle.js" defer></script>
+</body>
+</html>
